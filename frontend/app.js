@@ -973,9 +973,8 @@ function renderSeasons() {
   if (!state.seasons.length) { el.innerHTML = '<div class="empty">No seasons yet.</div>'; return; }
   el.innerHTML = [...state.seasons].reverse().map(s => `
 <div class="season-row">
-  <div class="season-num" onclick="switchSeason('${s.id}')" title="Switch to this season">${s.id}</div>
   <div class="season-info-block">
-    <div class="season-name">${s.name}${s.id === state.currentSeason ? ' <span style="color:var(--green-light);font-size:11px">● Active</span>' : ''}</div>
+    <div class="season-name" onclick="switchSeason('${s.id}')" style="cursor:pointer" title="Switch to this season">${s.name}${s.id === state.currentSeason ? ' <span style="color:var(--green-light);font-size:11px">● Active</span>' : ''}</div>
     <div class="season-dates">${formatDate(s.startDate)} – ${formatDate(s.endDate)}</div>
     <div class="season-fmt">${formatLabel(s.format)}</div>
     <div class="season-fmt">${getSeasonPlayers(s.id).length} players</div>
