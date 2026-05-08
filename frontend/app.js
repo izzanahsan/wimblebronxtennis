@@ -318,18 +318,24 @@ function renderPlayers() {
 }
 
 // ── MATCH SETUP ──────────────────────────────────────────────
-let selA = [], selB = [];
+let selA = [], selB = [], scoreA = 0, scoreB = 0;
 
 function renderMatchSetup() {
   if (loadLive()) {
+    scoreMode = 'quick';
     renderTeamSelectors('✅ Resuming match...');
     document.getElementById('score-section').style.display = 'block';
-    renderLiveScore();
+    setScoreMode('live');
     toast('⚡ Resuming in-progress match');
     return;
   }
-  selA = []; selB = [];
+  selA = []; selB = []; scoreA = 0; scoreB = 0;
+  scoreMode = 'quick';
   resetLive();
+  document.getElementById('quick-mode').style.display = 'block';
+  document.getElementById('live-mode').style.display = 'none';
+  document.getElementById('mode-quick-btn').classList.add('active');
+  document.getElementById('mode-live-btn').classList.remove('active');
   renderTeamSelectors(null);
   document.getElementById('score-section').style.display = 'none';
   renderLiveWidget();
@@ -353,10 +359,14 @@ function renderTeamSelectors(hintOverride) {
     document.getElementById('team-selection-hint').textContent = `Team A: ${selA.length}/2  |  Team B: ${selB.length}/2`;
   }
   if (ready) {
+    scoreA = 0; scoreB = 0;
+    const na = selA.map(id => state.allPlayers.find(p => p.id === id)?.name || '?').join(' & ');
+    const nb = selB.map(id => state.allPlayers.find(p => p.id === id)?.name || '?').join(' & ');
+    document.getElementById('score-label-a').textContent = na.length > 18 ? 'TEAM A' : na;
+    document.getElementById('score-label-b').textContent = nb.length > 18 ? 'TEAM B' : nb;
     document.getElementById('score-target-hint').textContent = formatLabel(getFormat(state.currentSeason));
-    renderLiveScore();
+    updateScoreDisplay();
     document.getElementById('score-section').style.display = 'block';
-    saveLive();
   } else {
     document.getElementById('score-section').style.display = 'none';
   }
@@ -419,7 +429,20 @@ function randomizeTeams() {
   renderTeamSelectors(hint);
 }
 
+// ── SCORE MODE ───────────────────────────────────────────────
+let scoreMode = 'quick';
 
+function setScoreMode(mode) {
+  scoreMode = mode;
+  document.getElementById('quick-mode').style.display = mode === 'quick' ? 'block' : 'none';
+  document.getElementById('live-mode').style.display = mode === 'live' ? 'block' : 'none';
+  document.getElementById('mode-quick-btn').classList.toggle('active', mode === 'quick');
+  document.getElementById('mode-live-btn').classList.toggle('active', mode === 'live');
+  if (mode === 'live') {
+    renderLiveScore();
+    saveLive();
+  }
+}
 
 // ── LIVE SCORER STATE ────────────────────────────────────────
 const PT_LABELS = ['0', '15', '30', '40', 'AD', 'Game'];
@@ -457,10 +480,6 @@ function loadLive() {
 }
 function clearLive() {
   localStorage.removeItem(LIVE_STORE);
-  if (livePollingInterval) {
-    clearInterval(livePollingInterval);
-    livePollingInterval = null;
-  }
 }
 
 function setServe(team) {
@@ -610,56 +629,68 @@ function renderLiveWidget() {
 }
 
 let liveListener = null;
-let livePollingInterval = null;
-
 function setupLiveListener(seasonId) {
   if (liveListener) liveListener();
-  if (livePollingInterval) clearInterval(livePollingInterval);
   if (!seasonId) return;
   
-  const docRef = db.collection("live_matches").doc(seasonId);
-  
-  liveListener = docRef.onSnapshot((doc) => {
-    handleLiveUpdate(doc);
-  });
-  
-  // Fallback polling every 2 seconds
-  livePollingInterval = setInterval(async () => {
-    try {
-      const doc = await docRef.get({ source: 'server' });
-      handleLiveUpdate(doc);
-    } catch (e) {
-      console.error("Error polling live match:", e);
-    }
-  }, 2000);
-}
-
-function handleLiveUpdate(doc) {
-  if (doc.exists) {
-    const data = doc.data();
-    live = data.live;
-    selA = data.selA;
-    selB = data.selB;
-    
-    renderLiveWidget();
-    renderLiveScore();
-  } else {
-      document.getElementById('live-viewer-card').style.display = 'none';
-  }
+  liveListener = db.collection("live_matches").doc(seasonId)
+    .onSnapshot((doc) => {
+      if (doc.exists) {
+        const data = doc.data();
+        live = data.live;
+        selA = data.selA;
+        selB = data.selB;
+        
+        renderLiveWidget();
+        if (scoreMode === 'live') {
+            renderLiveScore();
+        } else if (scoreMode === 'quick') {
+            const matchPage = document.getElementById('page-match');
+            if (matchPage && matchPage.classList.contains('active')) {
+                if (selA.length === 0 && selB.length === 0 && scoreA === 0 && scoreB === 0) {
+                    renderMatchSetup();
+                }
+            }
+        }
+      } else {
+          document.getElementById('live-viewer-card').style.display = 'none';
+      }
+    });
 }
 
 async function autoSaveLiveMatch() {
   if (isDateLocked(today())) { toast('⚠️ Session locked — match not saved.'); return; }
+  scoreA = live.gamesA; scoreB = live.gamesB;
   await confirmMatch();
   clearLive();
   resetLive();
 }
 
+// ── SCORING (quick mode) ─────────────────────────────────────
+function adjustScore(team, delta) {
+  const fmt = getFormat(state.currentSeason);
+  const sideMax = fmt.type === 'bo' ? Math.ceil(fmt.n / 2) : fmt.n;
+  if (team === 'a') scoreA = Math.max(0, Math.min(sideMax, scoreA + delta));
+  else scoreB = Math.max(0, Math.min(sideMax, scoreB + delta));
+  updateScoreDisplay();
+}
+function updateScoreDisplay() {
+  const fmt = getFormat(state.currentSeason);
+  const over = isMatchOver(scoreA, scoreB, fmt);
+  const dA = document.getElementById('score-display-a'), dB = document.getElementById('score-display-b');
+  dA.textContent = scoreA; dB.textContent = scoreB;
+  dA.className = 'score-num' + (over && scoreA > scoreB ? ' winning' : over && scoreA < scoreB ? ' losing' : '');
+  dB.className = 'score-num' + (over && scoreB > scoreA ? ' winning' : over && scoreB < scoreA ? ' losing' : '');
+  const banner = document.getElementById('winner-banner'), bt = document.getElementById('winner-banner-text');
+  if (over && scoreA !== scoreB) {
+    const w = scoreA > scoreB ? 'A' : 'B';
+    const names = w === 'A' ? selA.map(id => state.allPlayers.find(p => p.id === id)?.name).join(' & ') : selB.map(id => state.allPlayers.find(p => p.id === id)?.name).join(' & ');
+    bt.textContent = `🏆 ${names} WIN ${scoreA}-${scoreB}!`; banner.style.display = 'block';
+  } else { banner.style.display = 'none'; }
+}
 async function confirmMatch() {
   if (isDateLocked(today())) { toast('⚠️ Session is locked. Unlock it first.'); return; }
   const fmt = getFormat(state.currentSeason);
-  const scoreA = live.gamesA;
-  const scoreB = live.gamesB;
   if (!isMatchOver(scoreA, scoreB, fmt) || scoreA === scoreB) { toast(`⚠️ Match not finished — ${formatLabel(fmt)}`); return; }
   if (selA.length !== 2 || selB.length !== 2) { toast('⚠️ Pick 2 players per team'); return; }
   const w = scoreA > scoreB ? 'A' : 'B';
