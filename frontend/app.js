@@ -338,6 +338,7 @@ function renderMatchSetup() {
   document.getElementById('mode-live-btn').classList.remove('active');
   renderTeamSelectors(null);
   document.getElementById('score-section').style.display = 'none';
+  renderLiveWidget();
 }
 function renderTeamSelectors(hintOverride) {
   const players = getSeasonPlayers(state.currentSeason);
@@ -437,7 +438,10 @@ function setScoreMode(mode) {
   document.getElementById('live-mode').style.display = mode === 'live' ? 'block' : 'none';
   document.getElementById('mode-quick-btn').classList.toggle('active', mode === 'quick');
   document.getElementById('mode-live-btn').classList.toggle('active', mode === 'live');
-  if (mode === 'live') renderLiveScore();
+  if (mode === 'live') {
+    renderLiveScore();
+    saveLive();
+  }
 }
 
 // ── LIVE SCORER STATE ────────────────────────────────────────
@@ -598,11 +602,12 @@ function renderLiveScore() {
     wt.textContent = `🏆 ${wn} WIN ${live.gamesA}-${live.gamesB}!`;
     wb.style.display = 'block';
   } else { wb.style.display = 'none'; }
+  renderLiveWidget();
 }
 
 function renderLiveWidget() {
   const el = document.getElementById('live-viewer-card');
-  if (!live || live.matchOver) {
+  if (!live || live.matchOver || !selA.length || !selB.length) {
     el.style.display = 'none';
     return;
   }
