@@ -318,7 +318,7 @@ function renderPlayers() {
 }
 
 // ── MATCH SETUP ──────────────────────────────────────────────
-let selA = [], selB = [], scoreA = 0, scoreB = 0;
+let selA = [], selB = [];
 
 function renderMatchSetup() {
   if (loadLive()) {
@@ -328,7 +328,7 @@ function renderMatchSetup() {
     toast('⚡ Resuming in-progress match');
     return;
   }
-  selA = []; selB = []; scoreA = 0; scoreB = 0;
+  selA = []; selB = [];
   resetLive();
   renderTeamSelectors(null);
   document.getElementById('score-section').style.display = 'none';
@@ -353,11 +353,6 @@ function renderTeamSelectors(hintOverride) {
     document.getElementById('team-selection-hint').textContent = `Team A: ${selA.length}/2  |  Team B: ${selB.length}/2`;
   }
   if (ready) {
-    scoreA = 0; scoreB = 0;
-    const na = selA.map(id => state.allPlayers.find(p => p.id === id)?.name || '?').join(' & ');
-    const nb = selB.map(id => state.allPlayers.find(p => p.id === id)?.name || '?').join(' & ');
-    document.getElementById('score-label-a').textContent = na.length > 18 ? 'TEAM A' : na;
-    document.getElementById('score-label-b').textContent = nb.length > 18 ? 'TEAM B' : nb;
     document.getElementById('score-target-hint').textContent = formatLabel(getFormat(state.currentSeason));
     renderLiveScore();
     document.getElementById('score-section').style.display = 'block';
@@ -624,10 +619,7 @@ function setupLiveListener(seasonId) {
         selB = data.selB;
         
         renderLiveWidget();
-        const matchPage = document.getElementById('page-match');
-        if (matchPage && matchPage.classList.contains('active')) {
-            renderLiveScore();
-        }
+        renderLiveScore();
       } else {
           document.getElementById('live-viewer-card').style.display = 'none';
       }
@@ -636,16 +628,16 @@ function setupLiveListener(seasonId) {
 
 async function autoSaveLiveMatch() {
   if (isDateLocked(today())) { toast('⚠️ Session locked — match not saved.'); return; }
-  scoreA = live.gamesA; scoreB = live.gamesB;
   await confirmMatch();
   clearLive();
   resetLive();
 }
 
-
 async function confirmMatch() {
   if (isDateLocked(today())) { toast('⚠️ Session is locked. Unlock it first.'); return; }
   const fmt = getFormat(state.currentSeason);
+  const scoreA = live.gamesA;
+  const scoreB = live.gamesB;
   if (!isMatchOver(scoreA, scoreB, fmt) || scoreA === scoreB) { toast(`⚠️ Match not finished — ${formatLabel(fmt)}`); return; }
   if (selA.length !== 2 || selB.length !== 2) { toast('⚠️ Pick 2 players per team'); return; }
   const w = scoreA > scoreB ? 'A' : 'B';
