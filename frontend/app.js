@@ -111,8 +111,15 @@ async function attemptLogin() {
     });
     
     if (!resp.ok) {
-      const err = await resp.json();
-      toast(`❌ ${err.detail || 'Login failed'}`);
+      const text = await resp.text();
+      let errorMsg = text;
+      try {
+        const err = JSON.parse(text);
+        errorMsg = err.detail || errorMsg;
+      } catch (e) {
+        // Not JSON, use raw text
+      }
+      toast(`❌ ${errorMsg}`);
       return;
     }
     

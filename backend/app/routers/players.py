@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 from app.database import db
 from app.models import Player, PlayerLogin, PasswordChange
-from passlib.hash import bcrypt
+import bcrypt
 
 router = APIRouter(
     prefix="/players",
@@ -26,7 +26,7 @@ async def create_player(player: Player):
     player_data = player.dict(exclude_unset=True)
     player_data.pop('id', None)
     if 'hashed_password' not in player_data or not player_data['hashed_password']:
-        player_data['hashed_password'] = bcrypt.hash("root")
+        player_data['hashed_password'] = bcrypt.hashpw("root".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     doc_ref.set(player_data)
     player_data['id'] = doc_ref.id
     player_data.pop('hashed_password', None)
@@ -34,30 +34,35 @@ async def create_player(player: Player):
 
 @router.post("/login")
 async def login(credentials: PlayerLogin):
-    docs = db.collection('players').where('name', '==', credentials.name).limit(1).stream()
-    player = None
-    player_id = None
-    for doc in docs:
-        player = doc.to_dict()
-        player_id = doc.id
-        break
-    
-    if not player:
-        raise HTTPException(status_code=404, detail="Player not found")
-    
-    hashed_pw = player.get('hashed_password')
-    
-    if not hashed_pw:
-        if credentials.password == "root":
-            hashed_pw = bcrypt.hash("root")
-            db.collection('players').document(player_id).update({'hashed_password': hashed_pw})
-        else:
-            raise HTTPException(status_code=401, detail="Invalid password")
-    
-    if not bcrypt.verify(credentials.password, hashed_pw):
-        raise HTTPException(status_code=401, detail="Invalid password")
+    try:
+        docs = db.collection('players').where('name', '==', credentials.name).limit(1).stream()
+        player = None
+        player_id = None
+        for doc in docs:
+            player = doc.to_dict()
+            player_id = doc.id
+            break
         
-    return {"message": "Login successful", "player_id": player_id, "name": player['name']}
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        
+        hashed_pw = player.get('hashed_password')
+        
+        if not hashed_pw:
+            if credentials.password == "root":
+                hashed_pw = bcrypt.hashpw("root".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                db.collection('players').document(player_id).update({'hashed_password': hashed_pw})
+            else:
+                raise HTTPException(status_code=401, detail="Invalid password")
+        
+        if not bcrypt.checkpw(credentials.password.encode('utf-8'), hashed_pw.encode('utf-8')):
+            raise HTTPException(status_code=401, detail="Invalid password")
+            
+        return {"message": "Login successful", "player_id": player_id, "name": player['name']}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{player_id}/change-password")
 async def change_password(player_id: str, cp: PasswordChange):
@@ -70,12 +75,12 @@ async def change_password(player_id: str, cp: PasswordChange):
     hashed_pw = player_data.get('hashed_password')
     
     if not hashed_pw:
-        hashed_pw = bcrypt.hash("root")
+        hashed_pw = bcrypt.hashpw("root".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         
-    if not bcrypt.verify(cp.old_password, hashed_pw):
+    if not bcrypt.checkpw(cp.old_password.encode('utf-8'), hashed_pw.encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid old password")
         
-    new_hashed_pw = bcrypt.hash(cp.new_password)
+    new_hashed_pw = bcrypt.hashpw(cp.new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     doc_ref.update({'hashed_password': new_hashed_pw})
     return {"message": "Password updated successfully"}
 

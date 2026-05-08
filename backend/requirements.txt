@@ -3,4 +3,4 @@ uvicorn
 google-cloud-firestore
 pydantic
 aiofiles
-passlib[bcrypt]
+bcrypt
