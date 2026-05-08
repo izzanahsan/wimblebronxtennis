@@ -156,7 +156,13 @@ function renderProfilePage() {
   document.getElementById('profile-about').value = p.about || '';
   
   const avatarContainer = document.getElementById('profile-avatar-container');
-  avatarContainer.innerHTML = playerAvatar(p, 64);
+  avatarContainer.innerHTML = `
+    <label style="cursor:pointer;position:relative" title="Tap to change photo">
+      ${playerAvatar(p, 64)}
+      <input type="file" accept="image/*" style="display:none" onchange="uploadPlayerPhoto('${p.id}',this.files[0])">
+      <div style="position:absolute;bottom:-2px;right:-2px;background:var(--purple-light);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px">📷</div>
+    </label>
+  `;
   
   const stats = getPlayerStats(state.currentSeason).find(x => x.id === p.id);
   if (stats) {
@@ -361,11 +367,6 @@ let selectedPlayerFromSearch = null;
 
 function onSearchPlayerInput(value) {
   const resultsDiv = document.getElementById('player-search-results');
-  if (!value.trim()) {
-    resultsDiv.style.display = 'none';
-    selectedPlayerFromSearch = null;
-    return;
-  }
   
   const seasonPlayerIds = state.seasonPlayers[state.currentSeason] || [];
   const matches = state.allPlayers.filter(p => 
@@ -425,11 +426,26 @@ async function addNewPlayerFromSearch() {
   selectedPlayerFromSearch = null;
   inp.value = '';
   
-  const p = await fetch(`${API_URL}/players/`, {
+  const resp = await fetch(`${API_URL}/players/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name })
-  }).then(r => r.json());
+  });
+  
+  if (!resp.ok) {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const err = JSON.parse(text);
+      errorMsg = err.detail || errorMsg;
+    } catch (e) {
+      // Not JSON
+    }
+    toast(`❌ ${errorMsg}`);
+    return;
+  }
+  
+  const p = await resp.json();
   
   await fetch(`${API_URL}/seasons/${state.currentSeason}/players/${p.id}`, { method: 'POST' });
   
@@ -1135,7 +1151,7 @@ async function uploadPlayerPhoto(playerId, file) {
     });
     
     if (p) p.photo = base64;
-    renderPlayersPage(); renderStandings();
+    renderPlayersPage(); renderStandings(); renderProfilePage();
     toast('✅ Photo updated!');
   } catch (e) {
     toast('❌ Failed to update photo');
@@ -1158,4 +1174,11 @@ function playerAvatar(p, size = 34) {
   renderStandings();
   const searchInp = document.getElementById('search-player-input');
   if (searchInp) searchInp.addEventListener('keydown', e => { if (e.key === 'Enter') addNewPlayerFromSearch(); });
+  
+  document.addEventListener('click', e => {
+    const resultsDiv = document.getElementById('player-search-results');
+    if (resultsDiv && searchInp && !searchInp.contains(e.target) && !resultsDiv.contains(e.target)) {
+      resultsDiv.style.display = 'none';
+    }
+  });
 })();

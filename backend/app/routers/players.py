@@ -22,6 +22,11 @@ async def get_players():
 
 @router.post("/", response_model=Player)
 async def create_player(player: Player):
+    # Check if player with same name exists
+    existing = db.collection('players').where('name', '==', player.name).limit(1).stream()
+    if any(existing):
+        raise HTTPException(status_code=400, detail="Player with this name already exists")
+
     doc_ref = db.collection('players').document()
     player_data = player.dict(exclude_unset=True)
     player_data.pop('id', None)

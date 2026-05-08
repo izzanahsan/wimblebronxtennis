@@ -195,7 +195,7 @@
       <div class="card-title">➕ Add Player to Season</div>
       <p class="text-sm text-muted mb-8">Search existing players or add a new one.</p>
       <div class="input-group" style="position:relative">
-        <input class="input" id="search-player-input" placeholder="Search or new player name" maxlength="20" oninput="onSearchPlayerInput(this.value)">
+        <input class="input" id="search-player-input" placeholder="Search or new player name" maxlength="20" oninput="onSearchPlayerInput(this.value)" onfocus="onSearchPlayerInput(this.value)">
         <div id="player-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:0 0 8px 8px;z-index:10;max-height:200px;overflow-y:auto;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06)"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px">
