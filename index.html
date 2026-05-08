@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Wimblebronx</title>
+  <meta name="description" content="Wimblebronx Tennis League">
+  <meta name="theme-color" content="#6B21A8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wimblebronx">
+  <link rel="icon" type="image/png"
+    href="data:image/png;base64,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">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div class="loading-screen" id="loading-screen">
+    <div class="loading-logo">🎾 Wimblebronx</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-msg" id="loading-msg">Connecting...</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="header">
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:10px">
+      <img src="icon-192.png" style="width:56px;height:56px;border-radius:50%;margin-bottom:6px">
+      <div class="logo">Wimblebronx</div>
+      <div class="season-badge" id="season-badge" onclick="openSeasonSwitcher()" style="margin-top:6px">SEASON — ▾</div>
+    </div>
+    <div class="header-stats">
+      <div class="hstat">
+        <div class="hstat-val" id="hstat-matches">0</div>
+        <div class="hstat-label">MATCHES</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-val" id="hstat-today">0</div>
+        <div class="hstat-label">TODAY</div>
+      </div>
+    </div>
+    <div class="format-pill">Format: <span id="header-format">—</span></div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPage('standings',this)">Standings</button>
+    <button class="nav-btn" onclick="showPage('match',this)">Match</button>
+    <button class="nav-btn" onclick="showPage('history',this)">History</button>
+    <button class="nav-btn" onclick="showPage('players',this)">Players</button>
+    <button class="nav-btn" onclick="showPage('seasons',this)">Seasons</button>
+  </nav>
+
+  <!-- STANDINGS -->
+  <div class="page active" id="page-standings">
+    <!-- LIVE VIEWER -->
+    <div id="live-viewer-card" class="card" style="display:none;border-color:var(--green);margin-bottom:14px">
+      <div class="flex-between mb-8">
+        <div class="card-title" style="margin-bottom:0;color:var(--green-light)">🔴 LIVE</div>
+        <div class="text-sm text-muted" id="lv-status"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="flex:1;text-align:center">
+          <div class="score-col-label" id="lv-name-a">TEAM A</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--green-light)" id="lv-games-a">0
+          </div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text-muted)" id="lv-pt-a">0</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text-muted)">VS</div>
+        <div style="flex:1;text-align:center">
+          <div class="score-col-label" id="lv-name-b">TEAM B</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--green-light)" id="lv-games-b">0
+          </div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text-muted)" id="lv-pt-b">0</div>
+        </div>
+      </div>
+      <div id="lv-winner"
+        style="display:none;font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--green-light);text-align:center;margin-top:8px">
+      </div>
+    </div>
+    <p class="section-title">Leaderboard</p>
+    <div id="leaderboard-list"></div>
+  </div>
+
+  <!-- MATCH -->
+  <div class="page" id="page-match">
+    <p class="section-title">Log Match</p>
+    <div class="card">
+      <div class="card-title">🎲 Pick Teams</div>
+      <button class="random-btn" onclick="randomizeTeams()">⚡ Randomize Teams</button>
+      <div class="team-box">
+        <div class="team-label team-a-label">TEAM A — select 2</div>
+        <div class="player-select" id="team-a-select"></div>
+      </div>
+      <div class="team-box">
+        <div class="team-label team-b-label">TEAM B — select 2</div>
+        <div class="player-select" id="team-b-select"></div>
+      </div>
+      <p class="text-sm text-muted mt-8" id="team-selection-hint">Select 2 players per team</p>
+    </div>
+    <div class="card" id="score-section" style="display:none">
+      <div class="flex-between mb-8">
+        <div class="card-title" style="margin-bottom:0">🎾 Score</div>
+        <div style="display:flex;gap:6px">
+          <button id="mode-quick-btn" class="score-mode-btn active" onclick="setScoreMode('quick')">Quick</button>
+          <button id="mode-live-btn" class="score-mode-btn" onclick="setScoreMode('live')">Live</button>
+        </div>
+      </div>
+      <p class="score-target" id="score-target-hint"></p>
+
+      <!-- QUICK MODE -->
+      <div id="quick-mode">
+        <div class="score-section-inner">
+          <div class="score-col">
+            <div class="score-col-label" id="score-label-a">TEAM A</div>
+            <div class="score-controls">
+              <button class="score-btn score-btn-down" onclick="adjustScore('a',-1)">−</button>
+              <div class="score-num" id="score-display-a">0</div>
+              <button class="score-btn score-btn-up" onclick="adjustScore('a',1)">+</button>
+            </div>
+          </div>
+          <div class="score-vs">VS</div>
+          <div class="score-col">
+            <div class="score-col-label" id="score-label-b">TEAM B</div>
+            <div class="score-controls">
+              <button class="score-btn score-btn-down" onclick="adjustScore('b',-1)">−</button>
+              <div class="score-num" id="score-display-b">0</div>
+              <button class="score-btn score-btn-up" onclick="adjustScore('b',1)">+</button>
+            </div>
+          </div>
+        </div>
+        <div id="winner-banner" style="display:none" class="winner-banner">
+          <div class="winner-banner-text" id="winner-banner-text"></div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn btn-green" onclick="confirmMatch()">✅ Confirm Match</button>
+      </div>
+
+      <!-- LIVE MODE -->
+      <div id="live-mode" style="display:none">
+        <!-- deuce rule -->
+        <div class="flex-between mb-8" style="background:var(--surface2);border-radius:8px;padding:10px 12px">
+          <span class="text-sm">Deuce rule:</span>
+          <div style="display:flex;gap:6px">
+            <button id="deuce-sudden-btn" class="score-mode-btn active" onclick="setDeuceRule('sudden')">Sudden
+              Death</button>
+            <button id="deuce-full-btn" class="score-mode-btn" onclick="setDeuceRule('full')">Full Deuce</button>
+          </div>
+        </div>
+        <!-- serve indicator -->
+        <div
+          style="background:var(--surface2);border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          <span class="text-sm">Serving:</span>
+          <div style="display:flex;gap:6px">
+            <button id="serve-a-btn" class="score-mode-btn active" onclick="setServe('a')" id="serve-a-btn">🎾 Team
+              A</button>
+            <button id="serve-b-btn" class="score-mode-btn" onclick="setServe('b')" id="serve-b-btn">🎾 Team B</button>
+          </div>
+        </div>
+        <!-- games tally -->
+        <div class="flex-between mb-8">
+          <div style="text-align:center;flex:1">
+            <div class="score-col-label" id="live-label-a">TEAM A</div>
+            <div class="live-games" id="live-games-a">0</div>
+            <div class="text-sm text-muted">games</div>
+          </div>
+          <div class="score-vs">VS</div>
+          <div style="text-align:center;flex:1">
+            <div class="score-col-label" id="live-label-b">TEAM B</div>
+            <div class="live-games" id="live-games-b">0</div>
+            <div class="text-sm text-muted">games</div>
+          </div>
+        </div>
+        <!-- current game points -->
+        <div style="background:var(--surface2);border-radius:10px;padding:14px;margin-bottom:10px">
+          <div class="text-sm text-muted mb-8" style="text-align:center">Current Game <span id="live-serve-indicator"
+              style="color:var(--green-light)"></span></div>
+          <div class="flex-between" style="align-items:center;gap:12px">
+            <div style="flex:1;text-align:center">
+              <div class="live-point" id="live-pt-a">0</div>
+            </div>
+            <div style="color:var(--text-muted);font-size:18px;font-weight:600">—</div>
+            <div style="flex:1;text-align:center">
+              <div class="live-point" id="live-pt-b">0</div>
+            </div>
+          </div>
+          <div class="text-sm text-muted" id="live-game-status" style="text-align:center;margin-top:6px"></div>
+        </div>
+        <!-- point buttons -->
+        <div style="display:flex;gap:10px;margin-bottom:10px">
+          <button class="btn btn-primary" style="flex:1;padding:16px;font-size:14px;font-weight:700" id="live-btn-a"
+            onclick="livePoint('a')">POINT A</button>
+          <button class="btn btn-green" style="flex:1;padding:16px;font-size:14px;font-weight:700" id="live-btn-b"
+            onclick="livePoint('b')">POINT B</button>
+        </div>
+        <button class="btn btn-outline mb-8" style="font-size:12px;padding:8px" onclick="undoLastPoint()">↩ Undo Last
+          Point</button>
+        <div id="live-winner-banner" style="display:none" class="winner-banner mb-8">
+          <div class="winner-banner-text" id="live-winner-text"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="page" id="page-history">
+    <div class="flex-between mb-12">
+      <p class="section-title" style="margin-bottom:0">Match History</p>
+      <button id="session-btn" class="btn btn-outline" style="width:auto;padding:7px 12px;font-size:12px"
+        onclick="toggleSessionLock()">🔒 End Session</button>
+    </div>
+    <div id="match-history-list"></div>
+  </div>
+
+  <!-- PLAYERS -->
+  <div class="page" id="page-players">
+    <p class="section-title">Players</p>
+    <div class="card">
+      <div class="card-title">➕ Add Player to Season</div>
+      <p class="text-sm text-muted mb-8">Adds a new player directly to the current season.</p>
+      <div class="input-group">
+        <input class="input" id="new-player-name" placeholder="Player name" maxlength="20">
+      </div>
+      <button class="btn btn-primary" onclick="addPlayer()">Add to League</button>
+    </div>
+    <div class="card">
+      <div class="flex-between" onclick="toggleAvailabilityList()" style="cursor:pointer">
+        <div class="card-title" style="margin-bottom:0">📅 Today's Availability</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="text-sm text-muted" id="avail-count"></div>
+          <span id="avail-dropdown-chevron"
+            style="color:var(--text-muted);font-size:18px;transition:transform 0.2s">▾</span>
+        </div>
+      </div>
+      <div id="availability-list" style="display:none;margin-top:10px"></div>
+    </div>
+    <div class="card" id="players-dropdown-card" style="display:none">
+      <div class="flex-between" onclick="togglePlayersList()" style="cursor:pointer">
+        <div class="card-title" style="margin-bottom:0">👥 Season Players</div>
+        <span id="players-dropdown-chevron"
+          style="color:var(--text-muted);font-size:18px;transition:transform 0.2s">▾</span>
+      </div>
+      <div id="players-list" style="display:none;margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- SEASONS -->
+  <div class="page" id="page-seasons">
+    <p class="section-title">Seasons</p>
+    <button class="btn btn-outline mb-12" onclick="openNewSeasonModal()">+ New Season</button>
+    <div id="seasons-list"></div>
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-overlay" id="modal-season-switcher">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modal-season-switcher')">×</button>
+      <div class="modal-title">Switch Season</div>
+      <div id="season-switcher-list"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-delete-player-global">
+    <div class="modal">
+      <div class="modal-title">🗑 Delete Player Globally?</div>
+      <p class="text-sm text-muted mb-8">Removes the player from <strong>all seasons</strong>. Match history stays but
+        will show "?" for their name.</p>
+      <div class="modal-desc" id="modal-delete-player-global-name"></div>
+      <button class="btn btn-danger" onclick="confirmDeletePlayerGlobal()">Yes, Delete Everywhere</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-outline" onclick="closeModal('modal-delete-player-global')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-remove-player">
+    <div class="modal">
+      <div class="modal-title">Remove Player?</div>
+      <p class="text-sm text-muted mb-8">Removes from this season only. Match history stays.</p>
+      <div class="modal-desc" id="modal-remove-player-name"></div>
+      <button class="btn btn-danger" onclick="confirmRemovePlayer()">Yes, Remove</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-outline" onclick="closeModal('modal-remove-player')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-delete-match">
+    <div class="modal">
+      <div class="modal-title">🗑 Delete Match?</div>
+      <p class="text-sm text-muted mb-8">Removes the match and recalculates standings.</p>
+      <div class="modal-desc" id="modal-delete-match-desc"></div>
+      <button class="btn btn-danger" onclick="confirmDeleteMatch()">Yes, Delete</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-outline" onclick="closeModal('modal-delete-match')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-delete-season">
+    <div class="modal">
+      <div class="modal-title">🗑 Delete Season?</div>
+      <p class="text-sm text-muted mb-8">Permanently deletes the season and all its matches.</p>
+      <div class="modal-desc" id="modal-delete-season-desc"></div>
+      <button class="btn btn-danger" onclick="confirmDeleteSeason()">Yes, Delete Everything</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-outline" onclick="closeModal('modal-delete-season')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-match-saved">
+    <div class="modal">
+      <div class="modal-title">✅ Match Saved!</div>
+      <div class="modal-desc" id="modal-match-saved-desc"></div>
+      <button class="btn btn-green" onclick="closeModal('modal-match-saved')">OK</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-new-season">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modal-new-season')">×</button>
+      <div class="modal-title">New Season Setup</div>
+      <div class="input-group">
+        <label class="input-label">Season Name (optional)</label>
+        <input class="input" id="ns-name" placeholder="e.g. Summer 2025">
+      </div>
+      <div style="display:flex;gap:10px">
+        <div class="input-group" style="flex:1">
+          <label class="input-label">Start Date</label>
+          <input class="input" type="date" id="ns-start">
+        </div>
+        <div class="input-group" style="flex:1">
+          <label class="input-label">End Date</label>
+          <input class="input" type="date" id="ns-end">
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="input-group">
+        <label class="input-label">📋 Match Format</label>
+        <div class="format-selector">
+          <button class="fmt-btn active" id="fmt-btn-firstto" onclick="setFormatType('firstto')">First to N</button>
+          <button class="fmt-btn" id="fmt-btn-bo" onclick="setFormatType('bo')">Best of N</button>
+        </div>
+        <div id="firstto-picker">
+          <div class="format-n-row">
+            <span class="format-n-label">Win at:</span>
+            <div class="n-picker" id="firstto-n-picker"></div>
+          </div>
+        </div>
+        <div id="bo-picker" style="display:none">
+          <div class="format-n-row">
+            <span class="format-n-label">Best of:</span>
+            <div class="n-picker" id="bo-n-picker"></div>
+          </div>
+        </div>
+        <div class="format-preview" id="format-preview">—</div>
+      </div>
+      <div class="divider"></div>
+      <div class="input-group">
+        <label class="input-label">👥 Players in this Season</label>
+        <p class="text-sm text-muted mb-8">Select which players join. You can add more later.</p>
+        <div id="ns-player-checklist"></div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-green" onclick="startNewSeason()">🚀 Start Season</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-outline" onclick="closeModal('modal-new-season')">Cancel</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
