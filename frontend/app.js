@@ -354,12 +354,8 @@ function renderTeamSelectors(hintOverride) {
   }
   if (ready) {
     scoreA = 0; scoreB = 0;
-    const na = selA.map(id => state.allPlayers.find(p => p.id === id)?.name || '?').join(' & ');
-    const nb = selB.map(id => state.allPlayers.find(p => p.id === id)?.name || '?').join(' & ');
-    document.getElementById('score-label-a').textContent = na.length > 18 ? 'TEAM A' : na;
-    document.getElementById('score-label-b').textContent = nb.length > 18 ? 'TEAM B' : nb;
     document.getElementById('score-target-hint').textContent = formatLabel(getFormat(state.currentSeason));
-    updateScoreDisplay();
+    renderLiveScore();
     document.getElementById('score-section').style.display = 'block';
   } else {
     document.getElementById('score-section').style.display = 'none';
