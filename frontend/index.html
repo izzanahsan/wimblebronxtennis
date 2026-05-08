@@ -80,6 +80,8 @@
     <button class="nav-btn" onclick="showPage('history',this)">History</button>
     <button class="nav-btn" onclick="showPage('players',this)">Players</button>
     <button class="nav-btn" onclick="showPage('seasons',this)">Seasons</button>
+    <button class="nav-btn" id="nav-btn-login" onclick="showPage('login',this)">Login</button>
+    <button class="nav-btn" id="nav-btn-profile" onclick="showPage('profile',this)" style="display:none">Profile</button>
   </nav>
 
   <!-- STANDINGS -->
@@ -191,11 +193,15 @@
     <p class="section-title">Players</p>
     <div class="card">
       <div class="card-title">➕ Add Player to Season</div>
-      <p class="text-sm text-muted mb-8">Adds a new player directly to the current season.</p>
-      <div class="input-group">
-        <input class="input" id="new-player-name" placeholder="Player name" maxlength="20">
+      <p class="text-sm text-muted mb-8">Search existing players or add a new one.</p>
+      <div class="input-group" style="position:relative">
+        <input class="input" id="search-player-input" placeholder="Search or new player name" maxlength="20" oninput="onSearchPlayerInput(this.value)">
+        <div id="player-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:0 0 8px 8px;z-index:10;max-height:200px;overflow-y:auto;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06)"></div>
       </div>
-      <button class="btn btn-primary" onclick="addPlayer()">Add to League</button>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="addPlayerFromSearch()">Add Selected</button>
+        <button class="btn btn-outline" style="flex:1" onclick="addNewPlayerFromSearch()">Create New</button>
+      </div>
     </div>
     <div class="card">
       <div class="flex-between" onclick="toggleAvailabilityList()" style="cursor:pointer">
@@ -223,6 +229,61 @@
     <p class="section-title">Seasons</p>
     <button class="btn btn-outline mb-12" onclick="openNewSeasonModal()">+ New Season</button>
     <div id="seasons-list"></div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="page" id="page-login">
+    <p class="section-title">Player Login</p>
+    <div class="card">
+      <div class="card-title">Login</div>
+      <div class="input-group">
+        <label class="input-label">Player Name</label>
+        <input class="input" id="login-name" placeholder="Your name">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <input class="input" type="password" id="login-password" placeholder="Password (default: root)">
+      </div>
+      <button class="btn btn-primary" onclick="attemptLogin()">Login</button>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="page" id="page-profile">
+    <p class="section-title">Your Profile</p>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+        <div id="profile-avatar-container"></div>
+        <div>
+          <div class="card-title" id="profile-name" style="margin-bottom:4px">Player Name</div>
+          <div class="text-sm text-muted" id="profile-stats-summary">Stats loading...</div>
+        </div>
+      </div>
+      
+      <div class="input-group">
+        <label class="input-label">About Me</label>
+        <textarea class="input" id="profile-about" rows="4" placeholder="Tell us about yourself..."></textarea>
+      </div>
+      
+      <button class="btn btn-primary mb-12" onclick="updateProfile()">Save Profile</button>
+      
+      <div class="divider"></div>
+      
+      <div class="card-title">Change Password</div>
+      <div class="input-group">
+        <label class="input-label">Old Password</label>
+        <input class="input" type="password" id="profile-old-password">
+      </div>
+      <div class="input-group">
+        <label class="input-label">New Password</label>
+        <input class="input" type="password" id="profile-new-password">
+      </div>
+      <button class="btn btn-outline" onclick="changePassword()">Change Password</button>
+      
+      <div class="divider"></div>
+      
+      <button class="btn btn-danger" onclick="logout()">Logout</button>
+    </div>
   </div>
 
   <!-- MODALS -->
@@ -330,6 +391,7 @@
       <div class="input-group">
         <label class="input-label">👥 Players in this Season</label>
         <p class="text-sm text-muted mb-8">Select which players join. You can add more later.</p>
+        <input class="input mb-8" id="ns-player-search" placeholder="Filter players..." oninput="filterNsPlayers(this.value)">
         <div id="ns-player-checklist"></div>
       </div>
       <div class="divider"></div>

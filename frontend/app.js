@@ -71,9 +71,141 @@ async function loadAll() {
     
     if (state.seasons.length) state.currentSeason = state.seasons[state.seasons.length - 1].id;
     hideLoading();
-    setupLiveListener();
+    setupLiveListener(state.currentSeason);
+    
+    const storedUser = localStorage.getItem('wimblebronx_user');
+    if (storedUser) {
+      state.currentUser = JSON.parse(storedUser);
+      updateAuthUI();
+    }
   } catch (e) {
     toast('❌ Failed to load data. Check connection.');
+    console.error(e);
+  }
+}
+
+// ── AUTH ─────────────────────────────────────────────────────
+function updateAuthUI() {
+  const loginBtn = document.getElementById('nav-btn-login');
+  const profileBtn = document.getElementById('nav-btn-profile');
+  if (state.currentUser) {
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (profileBtn) profileBtn.style.display = 'block';
+  } else {
+    if (loginBtn) loginBtn.style.display = 'block';
+    if (profileBtn) profileBtn.style.display = 'none';
+  }
+}
+
+async function attemptLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const password = document.getElementById('login-password').value;
+  
+  if (!name || !password) { toast('⚠️ Enter name and password.'); return; }
+  
+  try {
+    const resp = await fetch(`${API_URL}/players/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, password })
+    });
+    
+    if (!resp.ok) {
+      const err = await resp.json();
+      toast(`❌ ${err.detail || 'Login failed'}`);
+      return;
+    }
+    
+    const data = await resp.json();
+    state.currentUser = { player_id: data.player_id, name: data.name };
+    localStorage.setItem('wimblebronx_user', JSON.stringify(state.currentUser));
+    updateAuthUI();
+    toast(`Welcome back, ${data.name}!`);
+    showPage('standings', document.querySelectorAll('.nav-btn')[0]);
+  } catch (e) {
+    toast('❌ Login failed');
+    console.error(e);
+  }
+}
+
+function logout() {
+  state.currentUser = null;
+  localStorage.removeItem('wimblebronx_user');
+  updateAuthUI();
+  toast('Logged out.');
+  showPage('standings', document.querySelectorAll('.nav-btn')[0]);
+}
+
+function renderProfilePage() {
+  if (!state.currentUser) {
+    showPage('login', document.getElementById('nav-btn-login'));
+    return;
+  }
+  
+  const p = state.allPlayers.find(x => x.id === state.currentUser.player_id);
+  if (!p) return;
+  
+  document.getElementById('profile-name').textContent = p.name;
+  document.getElementById('profile-about').value = p.about || '';
+  
+  const avatarContainer = document.getElementById('profile-avatar-container');
+  avatarContainer.innerHTML = playerAvatar(p, 64);
+  
+  const stats = getPlayerStats(state.currentSeason).find(x => x.id === p.id);
+  if (stats) {
+    document.getElementById('profile-stats-summary').textContent = `${stats.pts} pts · ${stats.matchWins} wins · ${stats.played} played`;
+  } else {
+    document.getElementById('profile-stats-summary').textContent = 'No stats for current season.';
+  }
+}
+
+async function updateProfile() {
+  if (!state.currentUser) return;
+  const about = document.getElementById('profile-about').value;
+  const p = state.allPlayers.find(x => x.id === state.currentUser.player_id);
+  
+  const updatedPlayer = { ...p, about };
+  
+  try {
+    await fetch(`${API_URL}/players/${p.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedPlayer)
+    });
+    
+    p.about = about;
+    toast('✅ Profile updated!');
+  } catch (e) {
+    toast('❌ Failed to update profile');
+    console.error(e);
+  }
+}
+
+async function changePassword() {
+  if (!state.currentUser) return;
+  const old_password = document.getElementById('profile-old-password').value;
+  const new_password = document.getElementById('profile-new-password').value;
+  
+  if (!old_password || !new_password) { toast('⚠️ Fill in all password fields.'); return; }
+  
+  try {
+    const resp = await fetch(`${API_URL}/players/${state.currentUser.player_id}/change-password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_password, new_password })
+    });
+    
+    if (!resp.ok) {
+      const err = await resp.json();
+      toast(`❌ ${err.detail || 'Failed to change password'}`);
+      return;
+    }
+    
+    toast('✅ Password changed successfully!');
+    document.getElementById('profile-old-password').value = '';
+    document.getElementById('profile-new-password').value = '';
+  } catch (e) {
+    toast('❌ Failed to change password');
     console.error(e);
   }
 }
@@ -140,6 +272,7 @@ function switchSeason(id) {
   closeModal('modal-season-switcher');
   updateHeader(); renderStandings(); renderMatchSetup();
   toast(`Switched to ${currentSeason().name}`);
+  setupLiveListener(id);
 }
 
 // ── NAV ──────────────────────────────────────────────────────
@@ -148,7 +281,7 @@ function showPage(name, btn) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  const renders = { standings: renderStandings, match: renderMatchSetup, history: renderHistory, players: renderPlayersPage, seasons: renderSeasons };
+  const renders = { standings: renderStandings, match: renderMatchSetup, history: renderHistory, players: renderPlayersPage, seasons: renderSeasons, profile: renderProfilePage };
   renders[name] && renders[name]();
 }
 
@@ -217,11 +350,72 @@ async function toggleAvailability(id) {
   await fetch(`${API_URL}/players/availability/${id}?available=${newVal}`, { method: 'PUT' });
 }
 
-async function addPlayer() {
-  const inp = document.getElementById('new-player-name');
+let selectedPlayerFromSearch = null;
+
+function onSearchPlayerInput(value) {
+  const resultsDiv = document.getElementById('player-search-results');
+  if (!value.trim()) {
+    resultsDiv.style.display = 'none';
+    selectedPlayerFromSearch = null;
+    return;
+  }
+  
+  const seasonPlayerIds = state.seasonPlayers[state.currentSeason] || [];
+  const matches = state.allPlayers.filter(p => 
+    p.name.toLowerCase().includes(value.toLowerCase()) && 
+    !seasonPlayerIds.includes(p.id)
+  );
+  
+  if (matches.length === 0) {
+    resultsDiv.style.display = 'none';
+    selectedPlayerFromSearch = null;
+    return;
+  }
+  
+  resultsDiv.innerHTML = matches.map(p => `
+    <div class="search-result-item" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectPlayerFromSearch('${p.id}', '${p.name}')">
+      ${p.name}
+    </div>
+  `).join('');
+  resultsDiv.style.display = 'block';
+}
+
+function selectPlayerFromSearch(id, name) {
+  const inp = document.getElementById('search-player-input');
+  inp.value = name;
+  selectedPlayerFromSearch = { id, name };
+  document.getElementById('player-search-results').style.display = 'none';
+}
+
+async function addPlayerFromSearch() {
+  if (!selectedPlayerFromSearch) {
+    toast('⚠️ Please select a player from the dropdown or create a new one.');
+    return;
+  }
+  
+  if (!state.currentSeason) { toast('⚠️ No active season.'); return; }
+  
+  const p = selectedPlayerFromSearch;
+  selectedPlayerFromSearch = null;
+  document.getElementById('search-player-input').value = '';
+  
+  await fetch(`${API_URL}/seasons/${state.currentSeason}/players/${p.id}`, { method: 'POST' });
+  
+  if (!state.seasonPlayers[state.currentSeason]) state.seasonPlayers[state.currentSeason] = [];
+  state.seasonPlayers[state.currentSeason].push(p.id);
+  state.availability[p.id] = true;
+  
+  renderPlayersPage(); renderStandings();
+  toast(`✅ ${p.name} added to season!`);
+}
+
+async function addNewPlayerFromSearch() {
+  const inp = document.getElementById('search-player-input');
   const name = inp.value.trim();
   if (!name) return;
   if (!state.currentSeason) { toast('⚠️ No active season.'); return; }
+  
+  selectedPlayerFromSearch = null;
   inp.value = '';
   
   const p = await fetch(`${API_URL}/players/`, {
@@ -238,6 +432,7 @@ async function addPlayer() {
   state.seasonPlayers[state.currentSeason].push(p.id);
   
   renderPlayersPage(); renderStandings();
+  toast(`✅ New player ${name} created and added to season!`);
 }
 
 let _deletePlayerGlobalId = null;
@@ -596,24 +791,18 @@ function renderLiveWidget() {
 }
 
 let liveListener = null;
-function setupLiveListener() {
+function setupLiveListener(seasonId) {
   if (liveListener) liveListener();
+  if (!seasonId) return;
   
-  liveListener = db.collection("live_matches")
-    .where("live.matchOver", "==", false)
-    .onSnapshot((querySnapshot) => {
-      if (!querySnapshot.empty) {
-        const doc = querySnapshot.docs[0];
+  liveListener = db.collection("live_matches").doc(seasonId)
+    .onSnapshot((doc) => {
+      if (doc.exists) {
         const data = doc.data();
         live = data.live;
         selA = data.selA;
         selB = data.selB;
         
-        if (isFirstLoad && data.seasonId && state.currentSeason !== data.seasonId) {
-          state.currentSeason = data.seasonId;
-          updateHeader(); renderStandings(); renderMatchSetup();
-        }
-
         renderLiveWidget();
         renderLiveScore();
         
@@ -830,10 +1019,27 @@ function toggleNsPlayer(id) {
   else nsSelectedPlayers.add(id);
   renderNsChecklist();
 }
+let nsPlayerFilter = '';
+
+function filterNsPlayers(val) {
+  nsPlayerFilter = val;
+  renderNsChecklist();
+}
+
 function renderNsChecklist() {
   const el = document.getElementById('ns-player-checklist');
   if (!state.allPlayers.length) { el.innerHTML = '<div class="empty" style="padding:8px 0">No players yet — add them after creating the season.</div>'; return; }
-  el.innerHTML = state.allPlayers.map((p, i) => {
+  
+  const filtered = state.allPlayers.filter(p => 
+    p.name.toLowerCase().includes(nsPlayerFilter.toLowerCase())
+  );
+  
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:8px 0">No players match your search.</div>';
+    return;
+  }
+  
+  el.innerHTML = filtered.map((p, i) => {
     const [bg, fg] = getColor(i);
     const checked = nsSelectedPlayers.has(p.id);
     return `<div class="player-check-row">
@@ -847,6 +1053,9 @@ function renderNsChecklist() {
 function openNewSeasonModal() {
   modalFmt = { type: 'firstto', n: 4 };
   nsSelectedPlayers = new Set(state.allPlayers.map(p => p.id));
+  nsPlayerFilter = '';
+  const searchInp = document.getElementById('ns-player-search');
+  if (searchInp) searchInp.value = '';
   const now = new Date(), end = new Date(now); end.setMonth(end.getMonth() + 3);
   document.getElementById('ns-name').value = '';
   document.getElementById('ns-start').value = today();
@@ -940,5 +1149,6 @@ function playerAvatar(p, size = 34) {
 (async () => {
   await loadAll();
   renderStandings();
-  document.getElementById('new-player-name').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
+  const searchInp = document.getElementById('search-player-input');
+  if (searchInp) searchInp.addEventListener('keydown', e => { if (e.key === 'Enter') addNewPlayerFromSearch(); });
 })();

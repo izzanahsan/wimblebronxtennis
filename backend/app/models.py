@@ -18,6 +18,16 @@ class Player(CamelModel):
     id: Optional[str] = None
     name: str
     photo: Optional[str] = None
+    hashed_password: Optional[str] = None
+    about: Optional[str] = None
+
+class PlayerLogin(CamelModel):
+    name: str
+    password: str
+
+class PasswordChange(CamelModel):
+    old_password: str
+    new_password: str
 
 class Season(CamelModel):
     id: Optional[str] = None

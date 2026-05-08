@@ -45,7 +45,8 @@ async function loadAll() {
     { id: 'p2', name: 'Player 2' },
     { id: 'p3', name: 'Player 3' },
     { id: 'p4', name: 'Player 4' },
-    { id: 'p5', name: 'Player 5' }
+    { id: 'p5', name: 'Player 5' },
+    { id: 'p6', name: 'Player 6' }
   ];
   
   const mockMatches = [
@@ -221,11 +222,70 @@ async function toggleAvailability(id) {
   toast(`Availability updated for ${id}`);
 }
 
-async function addPlayer() {
-  const inp = document.getElementById('new-player-name');
+let selectedPlayerFromSearch = null;
+
+function onSearchPlayerInput(value) {
+  const resultsDiv = document.getElementById('player-search-results');
+  if (!value.trim()) {
+    resultsDiv.style.display = 'none';
+    selectedPlayerFromSearch = null;
+    return;
+  }
+  
+  const seasonPlayerIds = state.seasonPlayers[state.currentSeason] || [];
+  const matches = state.allPlayers.filter(p => 
+    p.name.toLowerCase().includes(value.toLowerCase()) && 
+    !seasonPlayerIds.includes(p.id)
+  );
+  
+  if (matches.length === 0) {
+    resultsDiv.style.display = 'none';
+    selectedPlayerFromSearch = null;
+    return;
+  }
+  
+  resultsDiv.innerHTML = matches.map(p => `
+    <div class="search-result-item" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectPlayerFromSearch('${p.id}', '${p.name}')">
+      ${p.name}
+    </div>
+  `).join('');
+  resultsDiv.style.display = 'block';
+}
+
+function selectPlayerFromSearch(id, name) {
+  const inp = document.getElementById('search-player-input');
+  inp.value = name;
+  selectedPlayerFromSearch = { id, name };
+  document.getElementById('player-search-results').style.display = 'none';
+}
+
+async function addPlayerFromSearch() {
+  if (!selectedPlayerFromSearch) {
+    toast('⚠️ Please select a player from the dropdown or create a new one.');
+    return;
+  }
+  
+  if (!state.currentSeason) { toast('⚠️ No active season.'); return; }
+  
+  const p = selectedPlayerFromSearch;
+  selectedPlayerFromSearch = null;
+  document.getElementById('search-player-input').value = '';
+  
+  if (!state.seasonPlayers[state.currentSeason]) state.seasonPlayers[state.currentSeason] = [];
+  state.seasonPlayers[state.currentSeason].push(p.id);
+  state.availability[p.id] = true;
+  
+  renderPlayersPage(); renderStandings();
+  toast(`✅ ${p.name} added to season!`);
+}
+
+async function addNewPlayerFromSearch() {
+  const inp = document.getElementById('search-player-input');
   const name = inp.value.trim();
   if (!name) return;
   if (!state.currentSeason) { toast('⚠️ No active season.'); return; }
+  
+  selectedPlayerFromSearch = null;
   inp.value = '';
   
   const newId = `p${state.allPlayers.length + 1}`;
@@ -237,7 +297,7 @@ async function addPlayer() {
   state.seasonPlayers[state.currentSeason].push(p.id);
   
   renderPlayersPage(); renderStandings();
-  toast(`✅ Player ${name} added!`);
+  toast(`✅ New player ${name} created and added to season!`);
 }
 
 let _deletePlayerGlobalId = null;
@@ -824,10 +884,27 @@ function toggleNsPlayer(id) {
   else nsSelectedPlayers.add(id);
   renderNsChecklist();
 }
+let nsPlayerFilter = '';
+
+function filterNsPlayers(val) {
+  nsPlayerFilter = val;
+  renderNsChecklist();
+}
+
 function renderNsChecklist() {
   const el = document.getElementById('ns-player-checklist');
   if (!state.allPlayers.length) { el.innerHTML = '<div class="empty" style="padding:8px 0">No players yet — add them after creating the season.</div>'; return; }
-  el.innerHTML = state.allPlayers.map((p, i) => {
+  
+  const filtered = state.allPlayers.filter(p => 
+    p.name.toLowerCase().includes(nsPlayerFilter.toLowerCase())
+  );
+  
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:8px 0">No players match your search.</div>';
+    return;
+  }
+  
+  el.innerHTML = filtered.map((p, i) => {
     const [bg, fg] = getColor(i);
     const checked = nsSelectedPlayers.has(p.id);
     return `<div class="player-check-row">
@@ -841,6 +918,9 @@ function renderNsChecklist() {
 function openNewSeasonModal() {
   modalFmt = { type: 'firstto', n: 4 };
   nsSelectedPlayers = new Set(state.allPlayers.map(p => p.id));
+  nsPlayerFilter = '';
+  const searchInp = document.getElementById('ns-player-search');
+  if (searchInp) searchInp.value = '';
   const now = new Date(), end = new Date(now); end.setMonth(end.getMonth() + 3);
   document.getElementById('ns-name').value = '';
   document.getElementById('ns-start').value = today();
@@ -893,5 +973,6 @@ function playerAvatar(p, size = 34) {
 (async () => {
   await loadAll();
   renderStandings();
-  document.getElementById('new-player-name').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
+  const searchInp = document.getElementById('search-player-input');
+  if (searchInp) searchInp.addEventListener('keydown', e => { if (e.key === 'Enter') addNewPlayerFromSearch(); });
 })();
