@@ -457,6 +457,10 @@ function loadLive() {
 }
 function clearLive() {
   localStorage.removeItem(LIVE_STORE);
+  if (livePollingInterval) {
+    clearInterval(livePollingInterval);
+    livePollingInterval = null;
+  }
 }
 
 function setServe(team) {
@@ -606,24 +610,42 @@ function renderLiveWidget() {
 }
 
 let liveListener = null;
+let livePollingInterval = null;
+
 function setupLiveListener(seasonId) {
   if (liveListener) liveListener();
+  if (livePollingInterval) clearInterval(livePollingInterval);
   if (!seasonId) return;
   
-  liveListener = db.collection("live_matches").doc(seasonId)
-    .onSnapshot((doc) => {
-      if (doc.exists) {
-        const data = doc.data();
-        live = data.live;
-        selA = data.selA;
-        selB = data.selB;
-        
-        renderLiveWidget();
-        renderLiveScore();
-      } else {
-          document.getElementById('live-viewer-card').style.display = 'none';
-      }
-    });
+  const docRef = db.collection("live_matches").doc(seasonId);
+  
+  liveListener = docRef.onSnapshot((doc) => {
+    handleLiveUpdate(doc);
+  });
+  
+  // Fallback polling every 2 seconds
+  livePollingInterval = setInterval(async () => {
+    try {
+      const doc = await docRef.get();
+      handleLiveUpdate(doc);
+    } catch (e) {
+      console.error("Error polling live match:", e);
+    }
+  }, 2000);
+}
+
+function handleLiveUpdate(doc) {
+  if (doc.exists) {
+    const data = doc.data();
+    live = data.live;
+    selA = data.selA;
+    selB = data.selB;
+    
+    renderLiveWidget();
+    renderLiveScore();
+  } else {
+      document.getElementById('live-viewer-card').style.display = 'none';
+  }
 }
 
 async function autoSaveLiveMatch() {
