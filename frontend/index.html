@@ -107,43 +107,11 @@
     <div class="card" id="score-section" style="display:none">
       <div class="flex-between mb-8">
         <div class="card-title" style="margin-bottom:0">🎾 Score</div>
-        <div style="display:flex;gap:6px">
-          <button id="mode-quick-btn" class="score-mode-btn active" onclick="setScoreMode('quick')">Quick</button>
-          <button id="mode-live-btn" class="score-mode-btn" onclick="setScoreMode('live')">Live</button>
-        </div>
       </div>
       <p class="score-target" id="score-target-hint"></p>
 
-      <!-- QUICK MODE -->
-      <div id="quick-mode">
-        <div class="score-section-inner">
-          <div class="score-col">
-            <div class="score-col-label" id="score-label-a">TEAM A</div>
-            <div class="score-controls">
-              <button class="score-btn score-btn-down" onclick="adjustScore('a',-1)">−</button>
-              <div class="score-num" id="score-display-a">0</div>
-              <button class="score-btn score-btn-up" onclick="adjustScore('a',1)">+</button>
-            </div>
-          </div>
-          <div class="score-vs">VS</div>
-          <div class="score-col">
-            <div class="score-col-label" id="score-label-b">TEAM B</div>
-            <div class="score-controls">
-              <button class="score-btn score-btn-down" onclick="adjustScore('b',-1)">−</button>
-              <div class="score-num" id="score-display-b">0</div>
-              <button class="score-btn score-btn-up" onclick="adjustScore('b',1)">+</button>
-            </div>
-          </div>
-        </div>
-        <div id="winner-banner" style="display:none" class="winner-banner">
-          <div class="winner-banner-text" id="winner-banner-text"></div>
-        </div>
-        <div class="divider"></div>
-        <button class="btn btn-green" onclick="confirmMatch()">✅ Confirm Match</button>
-      </div>
-
       <!-- LIVE MODE -->
-      <div id="live-mode" style="display:none">
+      <div id="live-mode">
         <!-- deuce rule -->
         <div class="flex-between mb-8" style="background:var(--surface2);border-radius:8px;padding:10px 12px">
           <span class="text-sm">Deuce rule:</span>
