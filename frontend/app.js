@@ -626,7 +626,7 @@ function setupLiveListener(seasonId) {
   // Fallback polling every 2 seconds
   livePollingInterval = setInterval(async () => {
     try {
-      const doc = await docRef.get();
+      const doc = await docRef.get({ source: 'server' });
       handleLiveUpdate(doc);
     } catch (e) {
       console.error("Error polling live match:", e);
