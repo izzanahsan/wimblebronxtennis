@@ -2,12 +2,13 @@ const API_URL = '';
 
 // Firebase initialization placeholder
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyD5nuMuXUttZNwzm6u4v8sX4ez6yrXr5dE",
+  authDomain: "sandbox-dce.firebaseapp.com",
+  projectId: "sandbox-dce",
+  storageBucket: "sandbox-dce.firebasestorage.app",
+  messagingSenderId: "403974804730",
+  appId: "1:403974804730:web:e3e149707d5985e3556543",
+  measurementId: "G-1K0LC6JD2C"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
