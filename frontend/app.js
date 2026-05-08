@@ -57,11 +57,11 @@ async function loadAll() {
       fetch(`${API_URL}/players/availability`).then(r => r.json()),
     ]);
     
-    state.seasons = seasons;
+    state.seasons = seasons.sort((a, b) => a.startDate.localeCompare(b.startDate));
     state.allPlayers = players;
     
     state.seasonPlayers = {};
-    seasons.forEach(s => {
+    state.seasons.forEach(s => {
       state.seasonPlayers[s.id] = s.playerIds || [];
     });
     
@@ -71,7 +71,7 @@ async function loadAll() {
     
     if (state.seasons.length) state.currentSeason = state.seasons[state.seasons.length - 1].id;
     hideLoading();
-    setupLiveListener(state.currentSeason);
+    setupLiveListener();
   } catch (e) {
     toast('❌ Failed to load data. Check connection.');
     console.error(e);
@@ -140,7 +140,6 @@ function switchSeason(id) {
   closeModal('modal-season-switcher');
   updateHeader(); renderStandings(); renderMatchSetup();
   toast(`Switched to ${currentSeason().name}`);
-  setupLiveListener(id);
 }
 
 // ── NAV ──────────────────────────────────────────────────────
@@ -597,18 +596,24 @@ function renderLiveWidget() {
 }
 
 let liveListener = null;
-function setupLiveListener(seasonId) {
+function setupLiveListener() {
   if (liveListener) liveListener();
-  if (!seasonId) return;
   
-  liveListener = db.collection("live_matches").doc(seasonId)
-    .onSnapshot((doc) => {
-      if (doc.exists) {
+  liveListener = db.collection("live_matches")
+    .where("live.matchOver", "==", false)
+    .onSnapshot((querySnapshot) => {
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
         const data = doc.data();
         live = data.live;
         selA = data.selA;
         selB = data.selB;
         
+        if (isFirstLoad && data.seasonId && state.currentSeason !== data.seasonId) {
+          state.currentSeason = data.seasonId;
+          updateHeader(); renderStandings(); renderMatchSetup();
+        }
+
         renderLiveWidget();
         renderLiveScore();
         
@@ -628,6 +633,9 @@ function setupLiveListener(seasonId) {
           document.getElementById('live-viewer-card').style.display = 'none';
           isFirstLoad = false;
       }
+    }, (error) => {
+        console.error("Error in live listener:", error);
+        toast("❌ Error listening to live match");
     });
 }
 
