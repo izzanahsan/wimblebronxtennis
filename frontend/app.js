@@ -43,6 +43,7 @@ let state = {
   lockedDates: [],
   currentSeason: null
 };
+let isFirstLoad = true;
 
 // ── LOAD ─────────────────────────────────────────────────────
 async function loadAll() {
@@ -353,7 +354,6 @@ function renderTeamSelectors(hintOverride) {
     document.getElementById('team-selection-hint').textContent = `Team A: ${selA.length}/2  |  Team B: ${selB.length}/2`;
   }
   if (ready) {
-    scoreA = 0; scoreB = 0;
     document.getElementById('score-target-hint').textContent = formatLabel(getFormat(state.currentSeason));
     renderLiveScore();
     document.getElementById('score-section').style.display = 'block';
@@ -611,8 +611,22 @@ function setupLiveListener(seasonId) {
         
         renderLiveWidget();
         renderLiveScore();
+        
+        if (loadLive()) {
+          renderTeamSelectors('✅ Resuming match...');
+          document.getElementById('score-section').style.display = 'block';
+          
+          if (isFirstLoad) {
+            const matchBtn = document.querySelectorAll('.nav-btn')[1];
+            if (matchBtn) {
+              showPage('match', matchBtn);
+            }
+          }
+        }
+        isFirstLoad = false;
       } else {
           document.getElementById('live-viewer-card').style.display = 'none';
+          isFirstLoad = false;
       }
     });
 }
