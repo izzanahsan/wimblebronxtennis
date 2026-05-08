@@ -461,6 +461,9 @@ function saveLive() {
   }
 }
 function loadLive() {
+  if (selA && selA.length === 2 && selB && selB.length === 2 && live && !live.matchOver) {
+    return true;
+  }
   try {
     const d = JSON.parse(localStorage.getItem(LIVE_STORE) || 'null');
     if (d && d.seasonId === state.currentSeason && d.selA && d.selB) {
@@ -636,6 +639,13 @@ function setupLiveListener(seasonId) {
         renderLiveWidget();
         if (scoreMode === 'live') {
             renderLiveScore();
+        } else if (scoreMode === 'quick') {
+            const matchPage = document.getElementById('page-match');
+            if (matchPage && matchPage.classList.contains('active')) {
+                if (selA.length === 0 && selB.length === 0 && scoreA === 0 && scoreB === 0) {
+                    renderMatchSetup();
+                }
+            }
         }
       } else {
           document.getElementById('live-viewer-card').style.display = 'none';
@@ -694,6 +704,10 @@ async function confirmMatch() {
     document.getElementById('modal-match-saved-desc').textContent = `${wn} win ${scoreA}–${scoreB}`;
     openModal('modal-match-saved');
     clearLive(); resetLive();
+    if (state.currentSeason) {
+      db.collection("live_matches").doc(state.currentSeason).delete()
+        .catch(e => console.error("Error deleting live match:", e));
+    }
     renderMatchSetup(); updateHeader();
   } catch (e) {
     toast('❌ Failed to save match');
