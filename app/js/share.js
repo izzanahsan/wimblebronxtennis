@@ -3,6 +3,7 @@
 let _shareDate  = null;   // league: which day to share
 let _sharePhoto = null;   // HTMLImageElement picked by the user
 let _shareSections = { podium: true, rows: true, matches: true };
+let _shareLayout  = 'full';   // 'full' | 'photo' (results above and below, photo visible in the middle)
 let _shareBlob  = null;
 let _shareUrl   = null;
 
@@ -14,7 +15,6 @@ function leagueShareDates() {
 // The data for the image, for whichever kind of event is open
 function storyData() {
   const pName = id => player(id)?.name || '?';
-  const pPhoto = id => player(id)?.photo_url || null;
 
   if (App.event.kind === 'day') {
     const st = dayStandings().filter(r => r.played);
@@ -22,7 +22,7 @@ function storyData() {
     return {
       title: App.event.name,
       subtitle: `Americano · ${formatDate(done[0]?.date || today())}`,
-      podium: st.slice(0, 3).map(r => ({ name: pName(r.id), value: `${r.points} games`, photoUrl: pPhoto(r.id) })),
+      podium: st.slice(0, 3).map(r => ({ name: pName(r.id), value: `${r.points} games` })),
       rows: st.map((r, i) => ({ rank: i + 1, name: pName(r.id), value: String(r.points), sub: `${r.wins}W ${r.draws ? r.draws + 'D ' : ''}${r.losses}L` })),
       matches: done.map(m => ({ a: teamNames(m.team_a), b: teamNames(m.team_b), sa: m.score_a, sb: m.score_b, label: `R${m.round} · C${m.court}` }))
     };
@@ -39,7 +39,7 @@ function storyData() {
   return {
     title: App.event.name,
     subtitle: `${season()?.name || ''} · ${formatDate(_shareDate)}`,
-    podium: day.slice(0, 3).map(r => ({ name: pName(r.id), value: `${r.wins}W ${diff(r.diff)}`, photoUrl: pPhoto(r.id) })),
+    podium: day.slice(0, 3).map(r => ({ name: pName(r.id), value: `${r.wins}W ${diff(r.diff)}` })),
     rows: day.map((r, i) => ({ rank: i + 1, name: pName(r.id), value: `${r.wins}W`, sub: `${r.played} played · ${diff(r.diff)}` })),
     matches: ms.map(m => ({ a: teamNames(m.team_a), b: teamNames(m.team_b), sa: m.score_a, sb: m.score_b }))
   };
@@ -76,6 +76,13 @@ function renderShare() {
       </label>
       ${_sharePhoto ? `<button class="btn-mini mt-8" onclick="_sharePhoto=null;renderShare()">Remove photo</button>` : ''}
       <div class="flex-between mt-8">
+        <span class="text-sm">Layout</span>
+        <div class="seg">
+          <button class="${_shareLayout === 'full' ? 'active' : ''}" onclick="_shareLayout='full';renderShare()">Full results</button>
+          <button class="${_shareLayout === 'photo' ? 'active' : ''}" onclick="_shareLayout='photo';renderShare()">Photo in middle</button>
+        </div>
+      </div>
+      <div class="flex-between mt-8">
         <span class="text-sm">Show</span>
         <div class="seg">${toggle('podium', 'Podium')}${toggle('rows', 'Standings')}${toggle('matches', 'Scores')}</div>
       </div>
@@ -92,6 +99,7 @@ function renderShare() {
 async function pickSharePhoto(file) {
   if (!file) return;
   try {
+    if (!_sharePhoto) _shareLayout = 'photo'; // first photo: make it visible
     _sharePhoto = await loadImageFromFile(file);
     renderShare();
   } catch (e) { toast('❌ ' + e.message, 4000); }
@@ -106,7 +114,7 @@ async function renderStoryPreview(rerenderControls) {
 
   const d = storyData();
   const sections = ['podium', 'rows', 'matches'].filter(k => _shareSections[k]);
-  const blob = await renderStory({ ...d, photo: _sharePhoto, sections, footer: 'wimblebronx' });
+  const blob = await renderStory({ ...d, photo: _sharePhoto, sections, layout: _shareLayout, footer: 'wimblebronx' });
   if (seq !== _previewSeq) return; // a newer render started
 
   _shareBlob = blob;
