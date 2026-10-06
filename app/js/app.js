@@ -118,7 +118,7 @@ function renderHome() {
     <div class="hero">
       <img src="icon-192.png" alt="" class="hero-logo">
       <div class="logo">Wimblebronx</div>
-      <p class="text-muted">Tennis match days & leagues. No sign-up — share a link.</p>
+      <p class="text-muted">Tennis Tracker for Bronxpeople!</p>
     </div>
 
     <a class="big-choice" href="#/new/day">
