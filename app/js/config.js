@@ -14,7 +14,7 @@ const COLORS = [
   ['#78716C','#E7E5E0']
 ];
 
-const PT_LABELS = ['0', '15', '30', '40', 'AD', 'Game'];
+const PT_LABELS    = ['0', '15', '30', '40'];
 const FIRSTTO_OPTS = [3, 4, 5, 6, 7, 8, 9, 10];
-const BO_OPTS = [3, 5, 7, 9, 11];
-const LIVE_STORE = 'wimblebronx_live';
+const BO_OPTS      = [3, 5, 7, 9, 11];
+const TOTAL_OPTS   = [4, 6, 8, 10, 12, 16];

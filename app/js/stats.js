@@ -116,12 +116,12 @@ function addPointStats(into, s) {
   return into;
 }
 
-// Aggregate point stats for a player over a season's live-scored matches
-function playerPointStats(pid, sid) {
+// Aggregate point stats for a player over a list of live-scored matches
+function playerPointStats(pid, matches) {
   const agg = emptyPointStats();
-  seasonMatches(sid).forEach(m => {
+  matches.forEach(m => {
     if (!m.points?.w) return;
-    const side = m.teamA.includes(pid) ? 'A' : m.teamB.includes(pid) ? 'B' : null;
+    const side = m.team_a.includes(pid) ? 'A' : m.team_b.includes(pid) ? 'B' : null;
     if (side) addPointStats(agg, teamPointStats(replayMatch(m.points), side));
   });
   return agg;
@@ -185,12 +185,12 @@ function compareRow(label, a, b, valA, valB) {
 
 // ── MATCH STATS MODAL ────────────────────────────────────────
 function openMatchStats(id) {
-  const m = state.matches.find(x => x.id === id);
+  const m = App.matches.find(x => x.id === id);
   if (!m?.points?.w) return;
 
   const rep = replayMatch(m.points);
   const A = teamPointStats(rep, 'A'), B = teamPointStats(rep, 'B');
-  const na = teamNames(m.teamA), nb = teamNames(m.teamB);
+  const na = teamNames(m.team_a), nb = teamNames(m.team_b);
 
   const games = rep.games.filter(g => g.winner).map((g, i) => {
     const brk = g.winner !== g.server;
@@ -200,10 +200,10 @@ function openMatchStats(id) {
     </div>`;
   }).join('');
 
-  document.getElementById('match-stats-body').innerHTML = `
+  const html = `
     <div class="ms-head">
       <div class="ms-team ms-a">${esc(na)}</div>
-      <div class="ms-score">${m.gamesA}–${m.gamesB}</div>
+      <div class="ms-score">${m.score_a ?? 0}–${m.score_b ?? 0}</div>
       <div class="ms-team ms-b">${esc(nb)}</div>
     </div>
     <div class="text-sm text-muted" style="text-align:center;margin-bottom:12px">
@@ -228,17 +228,15 @@ function openMatchStats(id) {
     ${compareRow('Deuce games won',   A.deuceWon, B.deuceWon, A.deuceWon, B.deuceWon)}
     ${compareRow('Longest point run', A.streak, B.streak, A.streak, B.streak)}
   `;
-  openModal('modal-match-stats');
+  openSheet(html);
 }
 
-// ── PLAYER STATS MODAL ───────────────────────────────────────
-function openPlayerStats(pid) {
-  const sid = state.currentSeason;
-  const p   = state.allPlayers.find(x => x.id === pid);
+// ── PLAYER STATS SHEET ───────────────────────────────────────
+// record: { wins, losses, line } summary from the caller's standings
+function openPlayerStats(pid, matches, record, scopeLabel) {
+  const p = player(pid);
   if (!p) return;
-
-  const rec = getPlayerStats(sid).find(x => x.id === pid) || { matchWins: 0, played: 0, pts: 0, gameDiff: 0 };
-  const s   = playerPointStats(pid, sid);
+  const s = playerPointStats(pid, matches);
 
   const stat = (label, val, sub = '') =>
     `<div class="ps-tile"><div class="ps-val">${val}</div><div class="ps-label">${label}</div>${sub ? `<div class="ps-sub">${sub}</div>` : ''}</div>`;
@@ -256,18 +254,17 @@ function openPlayerStats(pid) {
         ${stat('Best point run',  s.streak)}
       </div>
       <p class="text-sm text-muted mt-8">From ${s.matches} live-scored match${s.matches === 1 ? '' : 'es'}. Doubles stats count for both partners.</p>`
-    : `<div class="empty" style="padding:12px 0">No live-scored matches yet.<br>Use <strong>Live</strong> scoring to unlock serve, break and deuce stats.</div>`;
+    : `<div class="empty" style="padding:12px 0">No live-scored matches yet.<br>Score a match with <strong>Live</strong> to unlock serve, break and deuce stats.</div>`;
 
-  document.getElementById('player-stats-body').innerHTML = `
+  openSheet(`
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
       ${playerAvatar(p, 48)}
       <div>
         <div class="modal-title" style="margin-bottom:2px">${esc(p.name)}</div>
-        <div class="text-sm text-muted">${rec.matchWins}W – ${rec.played - rec.matchWins}L · ${rec.pts} pts · games ${rec.gameDiff > 0 ? '+' : ''}${rec.gameDiff}</div>
+        <div class="text-sm text-muted">${esc(record || '')}</div>
       </div>
     </div>
-    <div class="ms-section">Point stats · ${esc(currentSeason()?.name || '')}</div>
+    <div class="ms-section">Point stats · ${esc(scopeLabel || '')}</div>
     ${pointSection}
-  `;
-  openModal('modal-player-stats');
+  `);
 }

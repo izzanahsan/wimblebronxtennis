@@ -259,8 +259,12 @@ begin
     v_out := json_build_object('id', v_id);
 
   when 'replace_schedule' then
-    -- Americano: drop rounds that haven't started and insert the new ones
-    delete from ev_matches where event_id = v_ev and status = 'scheduled' and round is not null;
+    -- Americano: replace rounds >= from_round (only if none of their matches started)
+    if exists (select 1 from ev_matches where event_id = v_ev and status <> 'scheduled'
+               and round >= coalesce((p_data->>'from_round')::int, 1)) then
+      raise exception 'those rounds have already started';
+    end if;
+    delete from ev_matches where event_id = v_ev and round >= coalesce((p_data->>'from_round')::int, 1);
     for v_m in select * from jsonb_array_elements(p_data->'matches') loop
       v_a := array(select jsonb_array_elements_text(v_m->'team_a')::bigint);
       v_b := array(select jsonb_array_elements_text(v_m->'team_b')::bigint);

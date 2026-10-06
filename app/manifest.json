@@ -1,8 +1,8 @@
 {
   "name": "Wimblebronx",
   "short_name": "Wimblebronx",
-  "description": "Tennis League Scorer",
-  "start_url": "/",
+  "description": "Tennis match days & leagues",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0D0118",

@@ -8,48 +8,57 @@ function toast(msg, dur = 2500) {
   _toastTimer = setTimeout(() => el.classList.remove('show'), dur);
 }
 
-// ── LOADING ──────────────────────────────────────────────────
-function setLoading(msg) {
-  document.getElementById('loading-msg').textContent = msg || 'Loading...';
-  document.getElementById('loading-screen').style.display = 'flex';
-}
-function hideLoading() {
-  document.getElementById('loading-screen').style.display = 'none';
-}
-
 // ── MODAL ────────────────────────────────────────────────────
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
+// One shared modal; content is passed in as HTML
+function openSheet(html) {
+  document.getElementById('sheet-body').innerHTML = html;
+  document.getElementById('sheet').classList.add('open');
+}
+function closeSheet() { document.getElementById('sheet').classList.remove('open'); }
 
 // ── GENERAL ──────────────────────────────────────────────────
-function getColor(i)   { return COLORS[i % COLORS.length]; }
-function initials(n)   { return n.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2); }
-function today()       { return new Date().toISOString().split('T')[0]; }
+const _escMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(s)        { return String(s ?? '').replace(/[&<>"']/g, c => _escMap[c]); }
+function getColor(i)   { return COLORS[Math.abs(i) % COLORS.length]; }
+function initials(n)   { return String(n || '?').split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2); }
+function today()       { return new Date().toLocaleDateString('en-CA'); } // local YYYY-MM-DD
 function formatDate(d) {
   if (!d) return '?';
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+  return new Date(d + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+function shortName(n, fallback) { return n.length > 16 ? fallback : n; }
+
+async function copyText(text, label = 'Link') {
+  try { await navigator.clipboard.writeText(text); toast(`📋 ${label} copied`); }
+  catch { prompt('Copy this:', text); }
 }
 
-// ── FORMAT HELPERS ───────────────────────────────────────────
-function getFormat(sid)     { return state.seasons.find(x => x.id === sid)?.format || { type: 'firstto', n: 4 }; }
-function formatLabel(fmt)   {
+// ── FORMATS ──────────────────────────────────────────────────
+// firstto: first side to n games · bo: best of n · total: exactly n games played
+function formatLabel(fmt) {
   if (!fmt) return '—';
   if (fmt.type === 'firstto') return `First to ${fmt.n} games`;
+  if (fmt.type === 'total')   return `${fmt.n} games total`;
   return `Best of ${fmt.n} (first to ${Math.ceil(fmt.n / 2)})`;
 }
-function winTarget(fmt)     { return fmt.type === 'firstto' ? fmt.n : Math.ceil(fmt.n / 2); }
+function sideMax(fmt) {
+  if (fmt.type === 'firstto') return fmt.n;
+  if (fmt.type === 'total')   return fmt.n;
+  return Math.ceil(fmt.n / 2);
+}
 function isMatchOver(gA, gB, fmt) {
-  const t = winTarget(fmt);
-  if (fmt.type === 'firstto') return gA >= t || gB >= t;
-  return gA >= t || gB >= t || (gA + gB) === fmt.n;
+  if (fmt.type === 'total')   return gA + gB >= fmt.n;
+  if (fmt.type === 'firstto') return gA >= fmt.n || gB >= fmt.n;
+  const t = Math.ceil(fmt.n / 2);
+  return gA >= t || gB >= t || (gA + gB) >= fmt.n;
 }
 
 // ── PLAYER AVATAR ────────────────────────────────────────────
 function playerAvatar(p, size = 34) {
-  const idx = state.allPlayers.findIndex(x => x.id === p.id);
-  const [bg, fg] = getColor(idx);
+  if (!p) return '';
+  const [bg, fg] = getColor(p.id);
   if (p.photo_url) {
-    return `<img src="${p.photo_url}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`;
+    return `<img src="${esc(p.photo_url)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`;
   }
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${Math.floor(size * 0.38)}px;flex-shrink:0">${initials(p.name)}</div>`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${Math.floor(size * 0.38)}px;flex-shrink:0">${esc(initials(p.name))}</div>`;
 }
