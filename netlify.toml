@@ -1,0 +1,4 @@
+# Netlify: publish the static app/ folder, no build step
+[build]
+  publish = "app"
+  command = ""
