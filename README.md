@@ -18,7 +18,9 @@ the tables themselves are closed to the public key.
 1. Supabase → SQL Editor → run `supabase/001_events.sql`.
 2. (Optional, once) run `supabase/002_import_legacy.sql` to copy the original Wimblebronx league into a v2 league.
    **Save the `key` it prints** — your organizer link is `<site>/#/e/<slug>?k=<key>`.
-3. Deploy the `app/` folder as a static site (Netlify, Vercel, GitHub Pages, …).
+3. Deploy the `app/` folder. Live site: https://wimblebronx.netlify.app (Netlify, uploaded directly):
+   `git archive HEAD app | tar -x -C /tmp && npx netlify-cli deploy --prod --dir /tmp/app --site wimblebronx`
+   (archiving from git keeps the untracked `_mock.*` test files out of the deploy).
 
 ## Code
 
