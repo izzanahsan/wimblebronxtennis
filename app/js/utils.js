@@ -16,6 +16,21 @@ function openSheet(html) {
 }
 function closeSheet() { document.getElementById('sheet').classList.remove('open'); }
 
+// ── ICONS ────────────────────────────────────────────────────
+// Inline SVG line icons; they inherit currentColor
+const _svg = (d, size = 22) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICONS = {
+  day:    s => _svg('<path d="M21 12a9 9 0 0 1-15.4 6.4"/><path d="M3 12a9 9 0 0 1 15.4-6.4"/><path d="M18.5 2.5v4h-4"/><path d="M5.5 21.5v-4h4"/>', s),
+  league: s => _svg('<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/>', s),
+  share:  s => _svg('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4"/><path d="m15.4 6.5-6.8 4"/>', s),
+  chev:   s => _svg('<path d="m9 6 6 6-6 6"/>', s)
+};
+
+// The club badge, used wherever the brand appears
+function logoImg(size, cls = '') {
+  return `<img src="icon-192.png" alt="Wimblebronx" width="${size}" height="${size}" class="${cls}">`;
+}
+
 // ── GENERAL ──────────────────────────────────────────────────
 const _escMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 function esc(s)        { return String(s ?? '').replace(/[&<>"']/g, c => _escMap[c]); }

@@ -33,9 +33,21 @@ function coverDraw(ctx, img, targetW, targetH) {
 }
 
 // Truncate text with ellipsis if it exceeds maxWidth
-function fitText(ctx, text, maxWidth) {
+// Fit text into maxWidth: first shrink the current font (down to minScale of its
+// size, leaving ctx.font at the size that fits), and only then cut with "…"
+function fitText(ctx, text, maxWidth, minScale = 0.5) {
   if (!text) return '';
   if (ctx.measureText(text).width <= maxWidth) return text;
+  const m = ctx.font.match(/(\d+(?:\.\d+)?)px/);
+  if (m) {
+    const size = parseFloat(m[1]), minSize = Math.max(10, Math.floor(size * minScale));
+    const setSize = px => { ctx.font = ctx.font.replace(m[0], `${px}px`); m[0] = `${px}px`; };
+    // text width scales with font size: jump close, then step down until it fits
+    let px = Math.max(minSize, Math.floor(size * maxWidth / ctx.measureText(text).width));
+    setSize(px);
+    while (px > minSize && ctx.measureText(text).width > maxWidth) setSize(--px);
+    if (ctx.measureText(text).width <= maxWidth) return text;
+  }
   const ellipsis = '…';
   let low = 0;
   let high = text.length;
@@ -149,6 +161,38 @@ async function shareOrDownload(blob, filename = 'story.png') {
   }
 }
 
+// Draw text on one line; when it would have to shrink below 75%, split it over two
+// lines instead: at " & " for a team, else at the space nearest the middle.
+// Each line still shrinks to fit, and only then gets "…"
+function fillTeam(ctx, text, x, cy, maxW) {
+  text = String(text ?? '');
+  const font0 = ctx.font;
+  const one = fitText(ctx, text, maxW, 0.75);
+  let lines = null;
+  if (one !== text) {
+    const amp = text.indexOf(' & ');
+    if (amp > 0) lines = [text.slice(0, amp) + ' &', text.slice(amp + 3)];
+    else {
+      const mid = text.length / 2;
+      const cut = [...text].map((c, i) => c === ' ' ? i : -1).filter(i => i > 0)
+        .sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid))[0];
+      if (cut) lines = [text.slice(0, cut), text.slice(cut + 1)];
+    }
+  }
+  if (!lines) {
+    if (one !== text) { ctx.font = font0; ctx.fillText(fitText(ctx, text, maxW), x, cy); }
+    else ctx.fillText(one, x, cy);
+    ctx.font = font0;
+    return;
+  }
+  const size = parseFloat(font0.match(/(\d+(?:\.\d+)?)px/)[1]);
+  const small = font0.replace(/(\d+(?:\.\d+)?)px/, `${Math.round(size * 0.8)}px`);
+  const off = size * 0.42;
+  ctx.font = small; ctx.fillText(fitText(ctx, lines[0], maxW), x, cy - off);
+  ctx.font = small; ctx.fillText(fitText(ctx, lines[1], maxW), x, cy + off);
+  ctx.font = font0;
+}
+
 /**
  * Render names-only podium cards
  */
@@ -156,10 +200,13 @@ function renderPodium(ctx, rawPodium, startY, s) {
   const count = Math.min(3, rawPodium.length);
   if (count === 0) return 0;
 
-  const w1 = Math.round(300 * s);
-  const w2 = Math.round(270 * s);
-  const w3 = Math.round(270 * s);
-  const gap = Math.round(24 * s);
+  // Widths never exceed the 952px content area (the 3 cards are 888px wide at 1×);
+  // heights and text keep the full scale
+  const sx = Math.min(s, 952 / 888);
+  const w1 = Math.round(300 * sx);
+  const w2 = Math.round(270 * sx);
+  const w3 = Math.round(270 * sx);
+  const gap = Math.round(24 * sx);
 
   const h1 = Math.round(190 * s);
   const h2 = Math.round(165 * s);
@@ -234,7 +281,7 @@ function renderPodium(ctx, rawPodium, startY, s) {
     // Name
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `600 ${nameSize}px "DM Sans", sans-serif`;
-    ctx.fillText(fitText(ctx, cfg.item.name || '', cfg.w - Math.round(24 * s)), cfg.x + cfg.w / 2, nameY);
+    fillTeam(ctx, cfg.item.name || '', cfg.x + cfg.w / 2, nameY, cfg.w - Math.round(24 * s));
 
     // Value
     if (cfg.item.value) {
@@ -408,7 +455,7 @@ function renderMatches(ctx, rawMatches, startY, scale, maxCount, accent) {
     ctx.textAlign = 'right';
     ctx.fillStyle = aWon ? accent : bWon ? 'rgba(255, 255, 255, 0.45)' : '#FFFFFF';
     ctx.font = `${aWon ? '700' : '500'} ${Math.round(24 * scale)}px "DM Sans", sans-serif`;
-    ctx.fillText(fitText(ctx, m.a, maxWA), rightBoundaryA, matchY + matchItemH / 2);
+    fillTeam(ctx, m.a, rightBoundaryA, matchY + matchItemH / 2, maxWA);
 
     const leftBoundaryB = 540 + pillW / 2 + Math.round(14 * scale);
     const maxWB = Math.max(60, 1016 - 20 - leftBoundaryB);
@@ -416,7 +463,7 @@ function renderMatches(ctx, rawMatches, startY, scale, maxCount, accent) {
     ctx.textAlign = 'left';
     ctx.fillStyle = bWon ? accent : aWon ? 'rgba(255, 255, 255, 0.45)' : '#FFFFFF';
     ctx.font = `${bWon ? '700' : '500'} ${Math.round(24 * scale)}px "DM Sans", sans-serif`;
-    ctx.fillText(fitText(ctx, m.b, maxWB), leftBoundaryB, matchY + matchItemH / 2);
+    fillTeam(ctx, m.b, leftBoundaryB, matchY + matchItemH / 2, maxWB);
   }
 
   if (hasOverflow) {
@@ -434,6 +481,19 @@ function renderMatches(ctx, rawMatches, startY, scale, maxCount, accent) {
 
   const totalSlots = displayedCount + (hasOverflow ? 1 : 0);
   return headerH + totalSlots * slotH;
+}
+
+// Club badge for the story footer; loaded once, null if it can't load
+let _storyLogo = null;
+function loadStoryLogo() {
+  if (typeof Image === 'undefined') return Promise.resolve(null);
+  _storyLogo ||= new Promise(res => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = 'icon-192.png';
+  });
+  return _storyLogo;
 }
 
 /**
@@ -508,12 +568,23 @@ async function renderStory(opts = {}) {
   }
   ctx.restore();
 
-  // Footer (y ≈ 1840)
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+  // Footer (y ≈ 1840): club badge + name, centred as one unit
+  const logo = await loadStoryLogo();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.font = '500 24px "DM Sans", sans-serif';
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(footerText, 540, 1840);
+  if (logo) {
+    const size = 84, gap = 16;
+    const textW = footerText ? ctx.measureText(footerText).width : 0;
+    const total = size + (footerText ? gap + textW : 0);
+    const x0 = 540 - total / 2;
+    ctx.drawImage(logo, x0, 1840 - size / 2, size, size);
+    ctx.textAlign = 'left';
+    if (footerText) ctx.fillText(footerText, x0 + size + gap, 1840);
+  } else {
+    ctx.textAlign = 'center';
+    ctx.fillText(footerText, 540, 1840);
+  }
 
   const rawPodium = Array.isArray(opts.podium) ? opts.podium.slice(0, 3) : [];
   const rawRows = Array.isArray(opts.rows) ? opts.rows : [];

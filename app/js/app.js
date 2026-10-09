@@ -76,7 +76,7 @@ function setHeader(ev, activeTab) {
   const season = App.seasons.find(s => s.id === App.seasonId);
   h.innerHTML = `
     <div class="ev-head">
-      <a href="#/" class="ev-home" aria-label="Home">🎾</a>
+      <a href="#/" class="ev-home" aria-label="Wimblebronx home">${logoImg(42)}</a>
       <div class="ev-title-wrap">
         <div class="ev-title">${esc(ev.name)}</div>
         <div class="ev-sub">
@@ -85,7 +85,7 @@ function setHeader(ev, activeTab) {
           ${App.isAdmin ? ' · <span class="org-badge">Organizer</span>' : ''}
         </div>
       </div>
-      <button class="icon-btn" onclick="openInvite()" aria-label="Share links">🔗</button>
+      <button class="icon-btn" onclick="openInvite()" aria-label="Share links">${ICONS.share(18)}</button>
     </div>`;
 
   nav.style.display = activeTab ? 'flex' : 'none';
@@ -116,24 +116,26 @@ function renderHome() {
   const recent = Recent.list();
   document.getElementById('view').innerHTML = `
     <div class="hero">
-      <img src="icon-192.png" alt="" class="hero-logo">
-      <div class="logo">Wimblebronx</div>
+      <img src="icon-512.png" alt="" class="hero-logo" width="132" height="132">
+      <h1 class="logo">Wimblebronx</h1>
       <p class="text-muted">Tennis Tracker for Bronxpeople!</p>
     </div>
 
     <a class="big-choice" href="#/new/day">
-      <div class="bc-icon">⚡</div>
-      <div><div class="bc-title">Start a match day</div><div class="bc-sub">Americano — partners rotate, everyone plays everyone. Live scores + IG results.</div></div>
+      <div class="bc-icon">${ICONS.day(24)}</div>
+      <div class="bc-body"><div class="bc-title">Start a match day</div><div class="bc-sub">Americano: partners rotate, everyone plays everyone. Live scores and IG results.</div></div>
+      <span class="bc-chev">${ICONS.chev(20)}</span>
     </a>
     <a class="big-choice" href="#/new/league">
-      <div class="bc-icon">🏆</div>
-      <div><div class="bc-title">Create a league</div><div class="bc-sub">Ongoing standings across seasons. Randomize doubles, score live, track stats.</div></div>
+      <div class="bc-icon">${ICONS.league(24)}</div>
+      <div class="bc-body"><div class="bc-title">Create a league</div><div class="bc-sub">Ongoing standings across seasons. Randomize doubles, score live, track stats.</div></div>
+      <span class="bc-chev">${ICONS.chev(20)}</span>
     </a>
 
     <div class="card">
       <div class="card-title">Join with a code</div>
       <div style="display:flex;gap:8px">
-        <input class="input" id="join-code" placeholder="e.g. k7mx2qpa" maxlength="8" autocapitalize="off" autocomplete="off">
+        <input class="input" id="join-code" placeholder="e.g. k7mx2qpa…" maxlength="8" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Event code" onkeydown="if(event.key==='Enter')joinCode()">
         <button class="btn btn-primary" style="width:auto" onclick="joinCode()">Open</button>
       </div>
     </div>
@@ -142,10 +144,12 @@ function renderHome() {
     <p class="section-title">Your events</p>
     ${recent.map(r => `
       <a class="recent-row" href="#/e/${esc(r.slug)}">
-        <span class="recent-kind">${r.kind === 'day' ? '⚡' : '🏆'}</span>
+        <span class="recent-kind">${r.kind === 'day' ? ICONS.day(18) : ICONS.league(18)}</span>
         <span class="recent-name">${esc(r.name)}</span>
         ${Keys.get(r.slug) ? '<span class="org-badge">Organizer</span>' : ''}
       </a>`).join('')}` : ''}
+
+    <p class="home-foot">Tennis Klab Wimblebronx</p>
   `;
 }
 
@@ -167,15 +171,15 @@ function renderCreate(kind) {
   const isDay = kind === 'day';
   document.getElementById('view').innerHTML = `
     <a class="back-link" href="#/">← Back</a>
-    <p class="section-title">${isDay ? '⚡ New match day' : '🏆 New league'}</p>
+    <p class="section-title">${isDay ? 'New match day' : 'New league'}</p>
 
     <div class="card">
       <div class="input-group">
-        <label class="input-label">Name</label>
+        <label class="input-label" for="c-name">Name</label>
         <input class="input" id="c-name" maxlength="60" placeholder="${isDay ? 'Sunday Americano' : 'Wimblebronx League'}">
       </div>
       <div class="input-group">
-        <label class="input-label">Players — one per line (${isDay ? '4 or more' : 'you can add more later'})</label>
+        <label class="input-label" for="c-players">Players, one per line (${isDay ? '4 or more' : 'you can add more later'})</label>
         <textarea class="input" id="c-players" rows="6" placeholder="Ana&#10;Ben&#10;Cy&#10;Dee" oninput="updateCreatePreview()"></textarea>
       </div>
     </div>
@@ -204,7 +208,7 @@ function renderCreate(kind) {
       <div class="format-preview" id="c-preview"></div>
     </div>`}
 
-    <button class="btn btn-green" id="c-go" onclick="submitCreate()">${isDay ? '🚀 Create match day' : '🚀 Create league'}</button>
+    <button class="btn btn-green" id="c-go" onclick="submitCreate()">${isDay ? 'Create match day' : 'Create league'}</button>
   `;
   updateCreatePreview();
 }
@@ -232,7 +236,7 @@ function updateCreatePreview() {
   const n = createPlayers().length;
   const pick = (id, opts, sel, fn) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = opts.map(v => `<div class="n-opt ${v === sel ? 'active' : ''}" onclick="${fn}(${v})">${v}</div>`).join('');
+    if (el) el.innerHTML = opts.map(v => `<button type="button" class="n-opt ${v === sel ? 'active' : ''}" aria-pressed="${v === sel}" onclick="${fn}(${v})">${v}</button>`).join('');
   };
 
   if (c.kind === 'day') {

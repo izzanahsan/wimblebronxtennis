@@ -110,7 +110,7 @@ function renderLeaguePlay() {
     const inA = _pick.a.includes(p.id), inB = _pick.b.includes(p.id);
     const cls = inA ? 'sel-a' : inB ? 'sel-b' : '';
     const off = (t === 'a' && inB) || (t === 'b' && inA) ? 'disabled' : (!p.active || busy.has(p.id)) ? 'unavail' : '';
-    return `<div class="p-tag ${cls} ${off}" onclick="leaguePick(${p.id},'${t}')">${esc(p.name)}</div>`;
+    return `<button type="button" class="p-tag ${cls} ${off}" aria-pressed="${inA || inB}" ${off ? 'disabled' : ''} onclick="leaguePick(${p.id},'${t}')">${esc(p.name)}</button>`;
   }).join('');
   const ready = _pick.a.length >= 1 && _pick.a.length === _pick.b.length;
 
@@ -319,7 +319,7 @@ function openNewSeason() {
       <button class="fmt-btn ${_nsFmt.type === 'bo' ? 'active' : ''}" onclick="_nsFmt={type:'bo',n:7};openNewSeason()">Best of N</button>
     </div>
     <div class="n-picker mb-8">${(_nsFmt.type === 'bo' ? BO_OPTS : FIRSTTO_OPTS).map(n =>
-      `<div class="n-opt ${n === _nsFmt.n ? 'active' : ''}" onclick="_nsFmt.n=${n};openNewSeason()">${n}</div>`).join('')}</div>
+      `<button type="button" class="n-opt ${n === _nsFmt.n ? 'active' : ''}" aria-pressed="${n === _nsFmt.n}" onclick="_nsFmt.n=${n};openNewSeason()">${n}</button>`).join('')}</div>
     <button class="btn btn-green" onclick="createSeason()">🚀 Start season</button>
   `);
 }
