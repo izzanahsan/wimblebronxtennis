@@ -2,7 +2,7 @@
 
 Tennis match days and leagues for any group. No sign-up: create an event, share the link.
 
-- **Match day (Americano):** partners rotate every round, fair sit-outs, multiple courts, live leaderboard.
+- **Match day (Americano):** one round at a time (start the next when ready), partners rotate, fair sit-outs, swap a no-show, multiple courts, live leaderboard.
 - **League:** seasons, 3/1 points table, doubles randomizer, history.
 - **Live scoring** point by point on any number of courts at once, with serve/break/deuce stats and a momentum chart.
 - **Instagram story:** end-of-day results (podium, standings, scores) drawn over your own photo.
@@ -30,10 +30,10 @@ the tables themselves are closed to the public key.
 | `app/js/day.js` / `league.js` | Match-day and league screens |
 | `app/js/scorer.js` | Live point-by-point scorer, quick score |
 | `app/js/stats.js` | Point-log replay → serve/break/deuce stats |
-| `app/js/americano.js` | Rotation scheduler |
+| `app/js/americano.js` | Next-round planner, standings |
 | `app/js/story.js` / `share.js` | Instagram story renderer and screen |
 
-Tests: `node tests/rules.test.js` (scoring and ranking rules). The scheduler has its own `__selfTest()` in `americano.js`.
+Tests: `node tests/rules.test.js` (scoring, ranking and next-round planning).
 
 `app/_mock.html` (git-ignored) runs the app against an in-browser Postgres (PGlite) for local testing:
 serve the repo root and open `/app/_mock.html`.

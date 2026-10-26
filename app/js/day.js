@@ -6,13 +6,18 @@ const DAY_TABS = [
   { id: 'manage',    label: 'Manage',    render: () => renderDayManage(), admin: true }
 ];
 
-// Schedule rounds fromRound … fromRound+count-1 for these players
+// Plan rounds fromRound … fromRound+count-1, one at a time, each from what came before
 function buildRounds(ids, fromRound, count) {
-  const s = App.event?.settings || {};
-  const sched = americanoSchedule(ids, s.courts || 1, count, (s.seed || 1) + fromRound);
-  return sched.flatMap(r => r.matches.map(m => ({
-    round: fromRound + r.round - 1, court: m.court, team_a: m.teamA, team_b: m.teamB
-  })));
+  const courts = App.event?.settings?.courts || 1;
+  const history = App.matches.filter(m => m.round && m.round < fromRound).map(m => ({ a: m.team_a, b: m.team_b }));
+  const out = [];
+  for (let r = fromRound; r < fromRound + count; r++) {
+    nextRound(ids, courts, history).forEach((m, i) => {
+      history.push(m);
+      out.push({ round: r, court: i + 1, team_a: m.a, team_b: m.b });
+    });
+  }
+  return out;
 }
 
 function dayRounds() {
@@ -21,6 +26,8 @@ function dayRounds() {
   return Object.keys(byRound).map(Number).sort((a, b) => a - b)
     .map(r => ({ round: r, matches: byRound[r].sort((a, b) => a.court - b.court) }));
 }
+
+function currentRound() { return dayRounds().find(r => r.matches.some(m => m.status !== 'done')); }
 
 // First round from which nothing has started (safe to regenerate)
 function firstFreeRound() {
@@ -32,86 +39,85 @@ function firstFreeRound() {
   return free;
 }
 
-async function regenerateRemaining(totalRounds = App.event.settings.rounds) {
-  const from = firstFreeRound();
+// The round after the one being played: player changes never move people already called to court
+function nextOpenRound() {
+  const cur = currentRound();
+  return cur ? Math.max(cur.round + 1, firstFreeRound()) : firstFreeRound();
+}
+
+async function regenerateRemaining(totalRounds = App.event.settings.rounds, from = nextOpenRound()) {
   const count = totalRounds - from + 1;
   const ids = App.players.filter(p => p.active).map(p => p.id);
-  if (ids.length < 4) { toast('⚠️ Need at least 4 active players'); return; }
+  if (count > 0 && ids.length < 4) { toast('Need at least 4 players switched on'); return; }
   await apiOp('replace_schedule', { from_round: from, matches: count > 0 ? buildRounds(ids, from, count) : [] });
 }
 
 // ── ROUNDS ───────────────────────────────────────────────────
+// Only the round being played is shown in full; finished rounds sit below it
 function renderRounds() {
   const rounds = dayRounds();
   const el = document.getElementById('view');
-  const done = rounds.filter(r => r.matches.every(m => m.status === 'done')).length;
-  const current = rounds.find(r => r.matches.some(m => m.status !== 'done'));
+  if (!rounds.length) { el.innerHTML = '<div class="empty">No rounds yet.</div>'; return; }
 
-  if (!rounds.length) { el.innerHTML = '<div class="empty">No rounds scheduled.</div>'; return; }
+  const current = currentRound();
+  const earlier = rounds.filter(r => r.matches.every(m => m.status === 'done') && (!current || r.round < current.round)).reverse();
 
   el.innerHTML = `
-    ${!current ? dayCompleteHtml() : ''}
-    ${!App.isAdmin && current ? `<p class="intro-note">Americano: partners change every round and everyone plays everyone. Find your name to see your court.</p>` : ''}
-    <div class="progress-row">
-      <span>${done}/${rounds.length} rounds done</span>
-      <div class="progress" role="progressbar" aria-label="Rounds done" aria-valuemin="0" aria-valuemax="${rounds.length}" aria-valuenow="${done}"><div style="width:${100 * done / rounds.length}%"></div></div>
-    </div>
-    ${rounds.map(r => roundCardHtml(r, r === current)).join('')}
-    ${App.isAdmin ? `<button class="btn btn-outline" onclick="dayAddRounds(1)">+ Add another round</button>` : ''}
+    ${!App.isAdmin && current ? `<p class="intro-note">Americano: partners change every round. Find your name to see your court.</p>` : ''}
+    ${current ? roundCardHtml(current, true) : roundDoneHtml(rounds.at(-1).round)}
+    ${earlier.length ? `<h2 class="section-title mt-12">Earlier rounds</h2>${earlier.map(r => roundCardHtml(r, false)).join('')}` : ''}
   `;
-  if (current) document.getElementById('round-' + current.round)?.scrollIntoView({ block: 'nearest' });
 }
 
-// The payoff when the last round finishes: the podium, and the way to the story
-function dayCompleteHtml() {
+// Between rounds: standings so far, then play on or finish with the story
+function roundDoneHtml(last) {
   const rows = dayStandings().filter(r => r.played);
-  if (!rows.length) return '';
   const ranks = tiedRanks(rows, (a, b) => a.points === b.points && a.wins === b.wins && a.diff === b.diff);
   const top = rows.map((r, i) => ({ r, rank: ranks[i] })).filter(x => x.rank <= 3);
   return `
   <div class="card day-complete">
-    <div class="dc-head">${logoImg(40)}<div><div class="dc-title">That's a wrap</div><div class="text-sm text-muted">All rounds done</div></div></div>
+    <div class="dc-head">${logoImg(40)}<div><div class="dc-title">Round ${last} done</div><div class="text-sm text-muted">Standings so far</div></div></div>
     ${top.map(({ r, rank }) => `
       <div class="dc-row">
         <span class="lb-rank top${rank}">${rank}</span>
         <span class="dc-name">${esc(player(r.id)?.name)}</span>
         <span class="dc-pts">${r.points}<small> games</small></span>
       </div>`).join('')}
-    <a class="btn btn-green mt-12" href="#/e/${App.slug}/share">Make the Instagram story</a>
-    ${App.isAdmin ? `<button class="btn btn-outline mt-8" onclick="dayAddRounds(1)">Keep playing: add a round</button>` : ''}
+    ${App.isAdmin
+      ? `<button class="btn btn-green mt-12" onclick="dayAddRounds(1)">Start round ${last + 1}</button>
+         <a class="btn btn-outline mt-8" href="#/e/${App.slug}/share">Done for today: make the Instagram story</a>`
+      : `<p class="text-sm text-muted mt-12">Waiting for the organizer to start the next round.</p>
+         <a class="btn btn-outline mt-8" href="#/e/${App.slug}/share">See the Instagram story</a>`}
   </div>`;
 }
 
 function roundCardHtml(r, isCurrent) {
   const playing = new Set(r.matches.flatMap(m => [...m.team_a, ...m.team_b]));
   const byes = App.players.filter(p => p.active && !playing.has(p.id));
-  const allDone = r.matches.every(m => m.status === 'done');
   const started = r.matches.some(m => m.status !== 'scheduled');
+  const canSwap = isCurrent && App.isAdmin && r.matches.some(m => m.status === 'scheduled');
 
   return `
-  <section class="card round-card ${isCurrent ? 'current' : allDone ? 'done' : 'upcoming'}" id="round-${r.round}" aria-labelledby="rt-${r.round}">
+  <section class="card round-card ${isCurrent ? 'current' : 'done'}" id="round-${r.round}" aria-labelledby="rt-${r.round}">
     <div class="flex-between mb-8">
       <h2 class="card-title" id="rt-${r.round}" style="margin:0">Round ${r.round}</h2>
-      <span class="round-state">${allDone ? 'Done' : isCurrent ? (started ? 'Now playing' : 'Up next') : ''}</span>
+      <span class="round-state">${isCurrent ? (started ? 'Now playing' : 'Up next') : 'Done'}</span>
     </div>
     ${r.matches.map(m => matchRowHtml(m, isCurrent)).join('')}
-    ${byes.length ? `<div class="text-sm text-muted mt-8">Sitting out: ${byes.map(p => esc(p.name)).join(', ')}</div>` : ''}
+    ${isCurrent && byes.length ? `<div class="text-sm text-muted mt-8">Sitting out: ${byes.map(p => esc(p.name)).join(', ')}</div>` : ''}
+    ${canSwap ? `<button class="btn btn-outline mt-12" onclick="openSwap(${r.round})">Someone missing? Swap a player</button>` : ''}
   </section>`;
 }
 
-// Actions show inline only on the current round; other open matches
-// open the same choices from a sheet when tapped (organizer only)
 function matchRowHtml(m, isCurrent) {
   const done = m.status === 'done', live = m.status === 'live';
   const aWin = done && m.score_a > m.score_b, bWin = done && m.score_b > m.score_a;
   const score = done || live
     ? `<span class="${aWin ? 'score-win' : ''}">${m.score_a ?? 0}</span><span class="text-muted">–</span><span class="${bWin ? 'score-win' : ''}">${m.score_b ?? 0}</span>`
     : '<span class="text-muted">vs</span>';
-  const na = esc(teamNames(m.team_a)), nb = esc(teamNames(m.team_b));
-  const tapOpen = App.isAdmin && !done && !live && !isCurrent;
 
   let action = '';
-  if (App.isAdmin && !done && (isCurrent || live)) {
+  if (App.isAdmin && !done && isCurrent) {
     action = `<div class="mr-actions">
       <button class="btn-mini" onclick="openQuickScore(${m.id})">Enter score</button>
       <a class="btn-mini btn-mini-live" href="#/e/${App.slug}/score/${m.id}">${live ? 'Continue live' : 'Score live'}</a>
@@ -126,25 +132,50 @@ function matchRowHtml(m, isCurrent) {
   }
 
   return `
-  <div class="match-row ${live ? 'is-live' : ''} ${tapOpen ? 'mr-tap' : ''}"
-    ${tapOpen ? `role="button" tabindex="0" aria-label="Court ${m.court}: ${na} vs ${nb}. Score this match" onclick="openMatchActions(${m.id})"` : ''}>
+  <div class="match-row ${live ? 'is-live' : ''}">
     <div class="mr-court">C${m.court}</div>
-    <div class="mr-team mr-a ${aWin ? 'win' : ''}">${na}</div>
+    <div class="mr-team mr-a ${aWin ? 'win' : ''}">${esc(teamNames(m.team_a))}</div>
     <div class="mr-score">${score}</div>
-    <div class="mr-team mr-right ${bWin ? 'win' : ''}">${nb}</div>
+    <div class="mr-team mr-right ${bWin ? 'win' : ''}">${esc(teamNames(m.team_b))}</div>
     ${action}
   </div>`;
 }
 
-function openMatchActions(id) {
-  const m = App.matches.find(x => x.id === id);
-  if (!m) return;
+// ── SWAP A PLAYER (no-show) ──────────────────────────────────
+// Only in matches of the current round that haven't started
+function openSwap(round) {
+  const r = dayRounds().find(x => x.round === round);
+  const ids = r.matches.filter(m => m.status === 'scheduled').flatMap(m => [...m.team_a, ...m.team_b]);
   openSheet(`
-    <div class="modal-title">Round ${m.round} · Court ${m.court}</div>
-    <p class="confirm-body">${esc(teamNames(m.team_a))} <span class="text-muted">vs</span> ${esc(teamNames(m.team_b))}</p>
-    <a class="btn btn-green" href="#/e/${App.slug}/score/${m.id}">Score live, point by point</a>
-    <button class="btn btn-outline mt-8" onclick="openQuickScore(${m.id})">Enter the final score</button>
-  `);
+    <div class="modal-title">Swap a player</div>
+    <p class="confirm-body">Who isn't here?</p>
+    <div class="player-select">${ids.map(id => `<button type="button" class="p-tag" onclick="openSwapPick(${round}, ${id})">${esc(player(id)?.name)}</button>`).join('')}</div>`);
+}
+
+function openSwapPick(round, outId) {
+  const r = dayRounds().find(x => x.round === round);
+  const busy = new Set(r.matches.flatMap(m => [...m.team_a, ...m.team_b]));
+  const free = App.players.filter(p => !busy.has(p.id));
+  openSheet(`
+    <div class="modal-title">Who plays instead of ${esc(player(outId)?.name)}?</div>
+    ${free.length
+      ? `<div class="player-select">${free.map(p => `<button type="button" class="p-tag" onclick="swapPlayer(${round}, ${outId}, ${p.id})">${esc(p.name)}</button>`).join('')}</div>`
+      : `<p class="confirm-body">Everyone is already playing this round. Add a late arrival in Manage first.</p>`}
+    <button class="btn btn-outline mt-12" onclick="openSwap(${round})">Back</button>`);
+}
+
+async function swapPlayer(round, outId, inId) {
+  const m = dayRounds().find(x => x.round === round)?.matches
+    .find(x => x.status === 'scheduled' && [...x.team_a, ...x.team_b].includes(outId));
+  if (!m) { closeSheet(); toast('That match has already started'); return; }
+  const rep = t => t.map(id => (id === outId ? inId : id));
+  await apiOp('save_match', { id: m.id, team_a: rep(m.team_a), team_b: rep(m.team_b) });
+  // The no-show sits out the next rounds; the stand-in is in from now on
+  if (player(outId)?.active) await apiOp('update_player', { id: outId, active: false });
+  if (!player(inId)?.active) await apiOp('update_player', { id: inId, active: true });
+  closeSheet();
+  toast(`${player(inId)?.name} plays instead of ${player(outId)?.name}. ${player(outId)?.name} is switched off for the next rounds.`, 4000);
+  rerender();
 }
 
 // ── STANDINGS ────────────────────────────────────────────────
@@ -192,11 +223,12 @@ function renderDayStandings() {
 // ── MANAGE (organizer) ───────────────────────────────────────
 function renderDayManage() {
   const s = App.event.settings;
-  const free = firstFreeRound();
+  const cur = currentRound();
+  const curOpen = cur && cur.matches.every(m => m.status === 'scheduled');
   document.getElementById('view').innerHTML = `
     <div class="card">
       <div class="card-title">Players</div>
-      <p class="text-sm text-muted mb-8">Adding or removing someone reshuffles rounds ${free}+ (rounds already started stay as they are).</p>
+      <p class="text-sm text-muted mb-8">Changes here count from the next round. For someone missing right now, use "Swap a player" on the Rounds tab.</p>
       ${App.players.map(p => `
         <div class="avail-row">
           <div style="opacity:${p.active ? 1 : .4}">${playerAvatar(p, 30)}</div>
@@ -214,13 +246,10 @@ function renderDayManage() {
 
     <div class="card">
       <div class="card-title">Rounds</div>
-      <p class="text-sm text-muted mb-8">${s.rounds} rounds · ${s.courts} court${s.courts > 1 ? 's' : ''} · ${esc(formatLabel(s.scoring))}</p>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-outline" onclick="dayAddRounds(1)">+1 round</button>
-        <button class="btn btn-outline" onclick="dayAddRounds(2)">+2 rounds</button>
-        <button class="btn btn-outline" onclick="dayAddRounds(-1)" ${s.rounds < free ? 'disabled' : ''}>−1 round</button>
-      </div>
-      <button class="btn btn-outline btn-icon mt-8" onclick="dayReshuffle()">${ICONS.shuffle(16)}Reshuffle remaining rounds</button>
+      <p class="text-sm text-muted mb-8">${s.courts} court${s.courts > 1 ? 's' : ''} · ${esc(formatLabel(s.scoring))}${cur ? ` · Round ${cur.round} ${curOpen ? 'up next' : 'playing'}` : ''}</p>
+      <button class="btn btn-outline btn-icon" onclick="dayReshuffle()" ${curOpen ? '' : 'disabled'}>${ICONS.shuffle(16)}Reshuffle this round</button>
+      <button class="btn btn-outline mt-8" onclick="dayAddRounds(-1)" ${curOpen && dayRounds().length > 1 ? '' : 'disabled'}>Remove this round</button>
+      <p class="text-sm text-muted mt-8">Both work only before anyone in the round has started.</p>
     </div>
 
     <div class="card">
@@ -239,29 +268,29 @@ async function dayAddPlayer() {
   if (!name) return;
   await apiOp('add_player', { name });
   await regenerateRemaining();
-  toast(`${name} added to the remaining rounds`);
+  toast(`${name} joins from the next round`);
   rerender();
 }
 
 async function dayTogglePlayer(id, active) {
   await apiOp('update_player', { id, active });
   await regenerateRemaining();
-  toast(active ? 'Back in the rotation' : 'Removed from the remaining rounds');
+  toast(active ? 'Back in from the next round' : 'Out from the next round. Still in this one? Swap them on the Rounds tab.', 4000);
   rerender();
 }
 
 async function dayAddRounds(d) {
   const rounds = App.event.settings.rounds + d;
-  if (rounds < firstFreeRound() - 1 || rounds < 1) return;
+  const from = firstFreeRound();
+  if (rounds < from - 1 || rounds < 1) return;
   await apiOp('update_event', { settings: { ...App.event.settings, rounds } });
-  await regenerateRemaining(rounds);
+  await regenerateRemaining(rounds, from);
   rerender();
 }
 
 async function dayReshuffle() {
-  await apiOp('update_event', { settings: { ...App.event.settings, seed: Math.floor(Math.random() * 1e9) } });
-  await regenerateRemaining();
-  toast('Remaining rounds reshuffled');
+  await regenerateRemaining(App.event.settings.rounds, firstFreeRound());
+  toast('Round reshuffled');
   rerender();
 }
 

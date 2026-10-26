@@ -3,7 +3,7 @@ const fs = require('fs'), vm = require('vm'), assert = require('assert');
 const on = () => {};
 const ctx = { document: { addEventListener: on }, window: { addEventListener: on }, supabase: { createClient: () => ({}) } };
 vm.createContext(ctx);
-for (const f of ['config.js', 'stats.js', 'utils.js', 'scorer.js']) vm.runInContext(fs.readFileSync(`${__dirname}/../app/js/${f}`, 'utf8'), ctx);
+for (const f of ['config.js', 'stats.js', 'utils.js', 'scorer.js', 'americano.js']) vm.runInContext(fs.readFileSync(`${__dirname}/../app/js/${f}`, 'utf8'), ctx);
 const { gameWinner, scoreFromLog, tiedRanks } = ctx;
 
 // Games
@@ -30,5 +30,29 @@ const byPts = (a, b) => a === b;
 assert.deepEqual([...tiedRanks([9, 7, 5], byPts)], [1, 2, 3]);
 assert.deepEqual([...tiedRanks([9, 9, 5], byPts)], [1, 1, 3]);
 assert.deepEqual([...tiedRanks([4, 4, 4], byPts)], [1, 1, 1]);
+
+// Next round: everyone on court once, fair sit-outs, no partner repeat when avoidable
+const { nextRound, americanoStandings } = ctx;
+const ids9 = [1, 2, 3, 4, 5, 6, 7, 8, 9], hist = [];
+for (let r = 0; r < 9; r++) {
+  const round = nextRound(ids9, 2, hist);
+  const on = round.flatMap(m => [...m.a, ...m.b]);
+  assert.equal(on.length, 8);
+  assert.equal(new Set(on).size, 8);                                  // nobody twice in a round
+  hist.push(...round);
+  const games = ids9.map(id => hist.filter(m => [...m.a, ...m.b].includes(id)).length);
+  assert.ok(Math.max(...games) - Math.min(...games) <= 1);            // sit-outs rotate
+}
+const r1 = nextRound([1, 2, 3, 4, 5, 6, 7, 8], 2, []);
+const pairs = new Set(r1.flatMap(m => [m.a, m.b]).map(t => [...t].sort().join('-')));
+nextRound([1, 2, 3, 4, 5, 6, 7, 8], 2, r1).flatMap(m => [m.a, m.b])
+  .forEach(t => assert.ok(!pairs.has([...t].sort().join('-'))));      // new partners in round 2
+
+// Standings: games won, then wins
+const st = americanoStandings([1, 2, 3, 4], [
+  { teamA: [1, 2], teamB: [3, 4], scoreA: 21, scoreB: 15 },
+  { teamA: [1, 3], teamB: [2, 4], scoreA: 10, scoreB: 20 }
+]);
+assert.equal(st[0].id, 2); assert.equal(st[0].points, 41); assert.equal(st[3].id, 3);
 
 console.log('rules: all passed');

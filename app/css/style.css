@@ -379,13 +379,9 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .sc-extra .btn:only-child { grid-column: 1 / -1; }
 .btn-quiet-danger { color: var(--danger-text); border-color: rgba(248,113,113,.45); }
 
-/* Rounds: the current round leads; later rounds are a quiet list */
+/* Rounds: the current round leads; finished rounds sit below */
 .round-state { font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .round-card.current .round-state { color: var(--green-light); }
-.round-card.upcoming { background: transparent; }
-.round-card.upcoming .match-row { padding: 8px 0; }
-.mr-tap { cursor: pointer; border-radius: 8px; }
-.mr-tap:active { background: var(--surface2); }
 .match-row .mr-actions .btn-mini { flex: 1; max-width: 170px; }
 
 /* Day complete: the end-of-day moment */
@@ -401,6 +397,5 @@ textarea.input { resize: vertical; line-height: 1.5; }
 a.btn { text-decoration: none; }
 
 @media (hover: hover) and (pointer: fine) {
-  .mr-tap:hover { background: var(--surface2); }
   .btn-quiet-danger:hover { border-color: var(--danger); }
 }

@@ -166,7 +166,7 @@ function renderCreate(kind) {
     kind,
     scoring: { type: 'total', n: 8 },
     format:  { type: 'firstto', n: 4 },
-    deuce: 'sudden', courts: null, rounds: null   // null = auto
+    deuce: 'sudden', courts: null   // null = auto
   };
   const isDay = kind === 'day';
   document.getElementById('view').innerHTML = `
@@ -190,7 +190,6 @@ function renderCreate(kind) {
     <div class="card">
       <div class="card-title">Format</div>
       <div class="format-n-row" role="group" aria-label="Courts"><span class="format-n-label">Courts</span><div class="n-picker" id="c-courts"></div></div>
-      <div class="format-n-row" role="group" aria-label="Rounds"><span class="format-n-label">Rounds</span><div class="n-picker" id="c-rounds"></div></div>
       <div class="format-selector">
         <button class="fmt-btn" id="c-fmt-total" onclick="createScoring('total')">Fixed games</button>
         <button class="fmt-btn" id="c-fmt-firstto" onclick="createScoring('firstto')">First to N</button>
@@ -248,13 +247,6 @@ function createSetPlayers(names) {
 function createAddName(n)    { createSetPlayers([...createPlayers(), n]); }
 function createRemoveName(n) { createSetPlayers(createPlayers().filter(x => x.toLowerCase() !== n.toLowerCase())); }
 
-function suggestedRounds(n, courts) {
-  const perRound = Math.min(courts, Math.floor(n / 4)) * 4;
-  if (!perRound) return 0;
-  // everyone partners everyone once ≈ n-1 rounds when nobody sits out
-  return perRound === n ? n - 1 : Math.min(n, 12);
-}
-
 function updateCreatePreview() {
   if (!_create) return;
   const c = _create;
@@ -268,9 +260,7 @@ function updateCreatePreview() {
   if (c.kind === 'day') {
     const maxCourts = Math.max(1, Math.floor(n / 4));
     c.effCourts = Math.min(c.courts || maxCourts, maxCourts);
-    const rounds = c.rounds ?? suggestedRounds(n, c.effCourts);
     pick('c-courts', [1, 2, 3, 4, 5, 6, 7, 8].filter(v => v <= maxCourts), c.effCourts, 'createCourts');
-    pick('c-rounds', [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15].concat(rounds && ![3,4,5,6,7,8,9,10,11,12,15].includes(rounds) ? [rounds] : []).sort((a, b) => a - b), rounds, 'createRounds');
     pick('c-n', c.scoring.type === 'total' ? TOTAL_OPTS : FIRSTTO_OPTS, c.scoring.n, 'createN');
     document.getElementById('c-fmt-total').classList.toggle('active', c.scoring.type === 'total');
     document.getElementById('c-fmt-firstto').classList.toggle('active', c.scoring.type === 'firstto');
@@ -284,7 +274,7 @@ function updateCreatePreview() {
     const playing = Math.min(c.effCourts, Math.floor(n / 4)) * 4;
     document.getElementById('c-preview').innerHTML = n < 4
       ? `Add at least 4 players (${n} so far).`
-      : `<strong>${n} players</strong> · ${c.effCourts} court${c.effCourts > 1 ? 's' : ''} · <strong>${rounds} rounds</strong> of ${formatLabel(c.scoring).toLowerCase()}` +
+      : `<strong>${n} players</strong> · ${c.effCourts} court${c.effCourts > 1 ? 's' : ''} · ${formatLabel(c.scoring).toLowerCase()} per match. Round 1 is planned now; start each next round when you're ready.` +
         (n > playing ? `<br>${n - playing} sit${n - playing === 1 ? 's' : ''} out each round (rotates fairly).` : '');
   } else {
     pick('c-n', c.format.type === 'bo' ? BO_OPTS : FIRSTTO_OPTS, c.format.n, 'createN');
@@ -294,8 +284,7 @@ function updateCreatePreview() {
   }
 }
 
-function createCourts(v)  { _create.courts = v; _create.rounds = null; updateCreatePreview(); }
-function createRounds(v)  { _create.rounds = v; updateCreatePreview(); }
+function createCourts(v)  { _create.courts = v; updateCreatePreview(); }
 function createDeuce(v)   { _create.deuce = v; updateCreatePreview(); }
 function createScoring(t) { _create.scoring = { type: t, n: t === 'total' ? 8 : 4 }; updateCreatePreview(); }
 function createFormat(t)  { _create.format = { type: t, n: t === 'bo' ? 7 : 4 }; updateCreatePreview(); }
@@ -314,16 +303,15 @@ async function submitCreate() {
   const btn = document.getElementById('c-go');
   btn.disabled = true; btn.textContent = 'Creating…';
   try {
-    const rounds = c.rounds ?? suggestedRounds(names.length, c.effCourts);
     const settings = isDay
-      ? { courts: c.effCourts, rounds, scoring: c.scoring, deuce: c.deuce, seed: Math.floor(Math.random() * 1e9) }
+      ? { courts: c.effCourts, rounds: 1, scoring: c.scoring, deuce: c.deuce }
       : { deuce: 'sudden' };
     const { slug } = await apiCreate(c.kind, name, settings, names);
 
     await loadEvent(slug);
     subscribe(slug, rerender);
     if (isDay) {
-      await apiOp('replace_schedule', { from_round: 1, matches: buildRounds(App.players.map(p => p.id), 1, rounds) });
+      await apiOp('replace_schedule', { from_round: 1, matches: buildRounds(App.players.map(p => p.id), 1, 1) });
     } else {
       const end = new Date(); end.setMonth(end.getMonth() + 3);
       await apiOp('add_season', { name: 'Season 1', start_date: today(), end_date: end.toLocaleDateString('en-CA'), format: c.format });
