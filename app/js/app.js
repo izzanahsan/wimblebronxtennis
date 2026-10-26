@@ -180,8 +180,10 @@ function renderCreate(kind) {
       </div>
       <div class="input-group">
         <label class="input-label" for="c-players">Players, one per line or separated by commas (${isDay ? '4 or more' : 'you can add more later'})</label>
-        <textarea class="input" id="c-players" rows="6" placeholder="Ana&#10;Ben&#10;Cy&#10;Dee" oninput="updateCreatePreview()"></textarea>
+        <textarea class="input" id="c-players" rows="4" placeholder="Ana&#10;Ben&#10;Cy&#10;Dee" oninput="updateCreatePreview()"></textarea>
       </div>
+      <div id="c-added"></div>
+      <div id="c-regulars"></div>
     </div>
 
     ${isDay ? `
@@ -224,6 +226,28 @@ function createPlayers() {
   });
 }
 
+// Chips under the players box: who's in (tap to remove) and regulars (tap to add)
+function renderPlayerChips() {
+  const names = createPlayers();
+  const inSet = new Set(names.map(n => n.toLowerCase()));
+  const regulars = Names.list().filter(n => !inSet.has(n.toLowerCase())).slice(0, 16);
+  const chip = (n, cls, fn, label) =>
+    `<button type="button" class="p-tag ${cls}" data-n="${esc(n)}" aria-label="${label} ${esc(n)}" onclick="${fn}(this.dataset.n)">${esc(n)}${cls ? ' ×' : ' +'}</button>`;
+  document.getElementById('c-added').innerHTML = names.length ? `
+    <div class="input-label">In (${names.length})</div>
+    <div class="player-select mb-12">${names.map(n => chip(n, 'sel-b', 'createRemoveName', 'Remove')).join('')}</div>` : '';
+  document.getElementById('c-regulars').innerHTML = regulars.length ? `
+    <div class="input-label">Regulars, tap to add</div>
+    <div class="player-select">${regulars.map(n => chip(n, '', 'createAddName', 'Add')).join('')}</div>` : '';
+}
+
+function createSetPlayers(names) {
+  document.getElementById('c-players').value = names.join('\n');
+  updateCreatePreview();
+}
+function createAddName(n)    { createSetPlayers([...createPlayers(), n]); }
+function createRemoveName(n) { createSetPlayers(createPlayers().filter(x => x.toLowerCase() !== n.toLowerCase())); }
+
 function suggestedRounds(n, courts) {
   const perRound = Math.min(courts, Math.floor(n / 4)) * 4;
   if (!perRound) return 0;
@@ -235,6 +259,7 @@ function updateCreatePreview() {
   if (!_create) return;
   const c = _create;
   const n = createPlayers().length;
+  renderPlayerChips();
   const pick = (id, opts, sel, fn) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = opts.map(v => `<button type="button" class="n-opt ${v === sel ? 'active' : ''}" aria-pressed="${v === sel}" onclick="${fn}(${v})">${v}</button>`).join('');

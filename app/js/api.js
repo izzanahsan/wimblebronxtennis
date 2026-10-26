@@ -36,6 +36,16 @@ const Recent = {
   remove(slug) { _save('wb_recent', Recent.list().filter(x => x.slug !== slug)); }
 };
 
+// Player names from events opened on this phone, newest first: one-tap
+// adding when creating an event, and the same spelling every time
+const Names = {
+  list() { return _store('wb_names', []); },
+  add(names) {
+    const seen = new Set(names.map(n => n.toLowerCase()));
+    _save('wb_names', [...names, ...Names.list().filter(n => !seen.has(n.toLowerCase()))].slice(0, 60));
+  }
+};
+
 // ── LINKS ────────────────────────────────────────────────────
 function baseUrl()           { return location.origin + location.pathname; }
 function viewLink(slug)      { return `${baseUrl()}#/e/${slug}`; }
@@ -114,6 +124,7 @@ async function loadEvent(slug) {
   App.isAdmin = !!Keys.get(slug);
   if (!App.seasons.find(s => s.id === App.seasonId)) App.seasonId = App.seasons.at(-1)?.id ?? null;
   Recent.add(App.event);
+  Names.add(App.players.filter(p => p.active).map(p => p.name));
   return true;
 }
 
