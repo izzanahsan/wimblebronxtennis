@@ -57,6 +57,7 @@ function renderRounds() {
       <div class="progress" role="progressbar" aria-label="Rounds done" aria-valuemin="0" aria-valuemax="${rounds.length}" aria-valuenow="${done}"><div style="width:${100 * done / rounds.length}%"></div></div>
     </div>
     ${rounds.map(r => roundCardHtml(r, r === current)).join('')}
+    ${App.isAdmin ? `<button class="btn btn-outline" onclick="dayAddRounds(1)">+ Add another round</button>` : ''}
   `;
   if (current) document.getElementById('round-' + current.round)?.scrollIntoView({ block: 'nearest' });
 }
@@ -77,6 +78,7 @@ function dayCompleteHtml() {
         <span class="dc-pts">${r.points}<small> games</small></span>
       </div>`).join('')}
     <a class="btn btn-green mt-12" href="#/e/${App.slug}/share">Make the Instagram story</a>
+    ${App.isAdmin ? `<button class="btn btn-outline mt-8" onclick="dayAddRounds(1)">Keep playing: add a round</button>` : ''}
   </div>`;
 }
 
