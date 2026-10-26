@@ -276,7 +276,9 @@ function scheduleCost(schedule) {
 
 function americanoSchedule(playerIds, courts, rounds, seed) {
   let best = null, bestCost = Infinity;
-  for (let i = 0; i < 40; i++) {
+  // Big groups: fewer tries keeps phones responsive (each try costs more)
+  const tries = playerIds.length > 16 ? 12 : 40;
+  for (let i = 0; i < tries; i++) {
     const s = americanoScheduleOnce(playerIds, courts, rounds, (seed + i * 7919) >>> 0);
     const c = scheduleCost(s);
     if (c < bestCost) { best = s; bestCost = c; }

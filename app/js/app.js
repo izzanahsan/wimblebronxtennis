@@ -317,6 +317,13 @@ async function submitCreate() {
 window.addEventListener('hashchange', route);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
+// A phone waking up missed the "changed" messages: reload the event.
+// Skipped while this phone holds unsaved scores, which a reload would wipe.
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden || !App.slug || savesPending()) return;
+  try { if (await loadEvent(App.slug)) rerender(); } catch (e) { console.error(e); }
+});
+
 (async () => {
   document.getElementById('loading-screen').style.display = 'none';
   await route();

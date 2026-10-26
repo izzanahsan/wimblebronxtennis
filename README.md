@@ -33,5 +33,7 @@ the tables themselves are closed to the public key.
 | `app/js/americano.js` | Rotation scheduler |
 | `app/js/story.js` / `share.js` | Instagram story renderer and screen |
 
+Tests: `node tests/rules.test.js` (scoring and ranking rules). The scheduler has its own `__selfTest()` in `americano.js`.
+
 `app/_mock.html` (git-ignored) runs the app against an in-browser Postgres (PGlite) for local testing:
 serve the repo root and open `/app/_mock.html`.

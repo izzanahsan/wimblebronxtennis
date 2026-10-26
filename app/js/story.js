@@ -245,6 +245,7 @@ function renderPodium(ctx, rawPodium, startY, s) {
   for (const cfg of configs) {
     if (!cfg.item) continue;
     if (cfg.item.rank) { cfg.rank = String(cfg.item.rank); cfg.color = MEDAL[cfg.item.rank] || cfg.color; }
+    if (cfg.item.rank === 1 && cfg.h !== h1) { cfg.y = startY + dy1; cfg.h = h1; } // a tied winner stands as tall
 
     // Card background & border
     ctx.save();

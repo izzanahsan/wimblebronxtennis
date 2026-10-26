@@ -62,17 +62,19 @@ async function apiCheckKey(slug, key) {
   return !error && data === true;
 }
 
-// Write to the open event, merge the result into App, tell other viewers
-async function apiOp(op, data = {}) {
+// Write to the open event, merge the result into App, tell other viewers.
+// keepLocal: this phone already holds a newer copy (the live scorer), so a
+// slow reply must not overwrite it
+async function apiOp(op, data = {}, keepLocal = false) {
   const { data: row, error } = await sb.rpc('admin_op', {
     p_slug: App.slug, p_key: Keys.get(App.slug), p_op: op, p_data: data
   });
   if (error) {
-    toast('❌ ' + (error.message || 'Save failed'), 4000);
+    toast(`Not saved: ${error.message || 'no connection'}. Check your signal.`, 4000);
     console.error(op, error);
     throw error;
   }
-  applyOp(op, data, row);
+  if (!keepLocal) applyOp(op, data, row);
   notifyChange();
   return row;
 }

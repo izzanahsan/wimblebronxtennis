@@ -17,13 +17,36 @@ function scoreFromLog(log) {
 }
 
 // ── SAVE QUEUE ───────────────────────────────────────────────
-// Points are sent in order; each save carries the full log, so a
-// failed save is repaired by the next one.
+// Points are sent in order and each save carries the full match state.
+// This phone's copy is the truth while scoring; a failed save is resent
+// from it later, so the final point of a match is never stuck unsaved.
 let _saveChain = Promise.resolve();
+let _inFlight = 0, _retryTimer = null;
+const _dirty = new Set();   // match ids whose latest save failed
+
 function queueSave(data) {
-  _saveChain = _saveChain.then(() => apiOp('save_match', data)).catch(() => {});
+  _inFlight++;
+  _saveChain = _saveChain
+    .then(() => apiOp('save_match', data, true))
+    .then(() => _dirty.delete(data.id), () => {
+      _dirty.add(data.id);
+      _retryTimer ||= setTimeout(retrySaves, 5000);
+    })
+    .finally(() => _inFlight--);
   return _saveChain;
 }
+
+function retrySaves() {
+  _retryTimer = null;
+  _dirty.forEach(id => {
+    const m = App.matches.find(x => x.id === id);
+    if (m) queueSave({ id, points: m.points, score_a: m.score_a, score_b: m.score_b, status: m.status, live: m.live });
+  });
+}
+window.addEventListener('online', retrySaves);
+
+// True while this phone has scores the database doesn't have yet
+function savesPending() { return _inFlight > 0 || _dirty.size > 0; }
 
 // ── SCORER SCREEN ────────────────────────────────────────────
 let _scorerId = null;
@@ -184,7 +207,7 @@ async function scorerFinishNow() {
   const fin = scoreFromLog(cur.points);
   Object.assign(cur, { score_a: fin.gA, score_b: fin.gB, status: 'done', live: null });
   renderScorer(cur.id);
-  queueSave({ id: cur.id, score_a: fin.gA, score_b: fin.gB, status: 'done', live: null });
+  queueSave({ id: cur.id, points: cur.points, score_a: fin.gA, score_b: fin.gB, status: 'done', live: null });
 }
 
 // ── QUICK SCORE SHEET ────────────────────────────────────────
