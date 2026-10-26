@@ -45,9 +45,12 @@ function renderScorer(matchId) {
   const where = m.round ? `Round ${m.round} · Court ${m.court}` : formatDate(m.date);
   const canEdit = App.isAdmin;
 
+  // Every row above the POINT buttons keeps the same height whatever the match state,
+  // so the buttons never move under a thumb mid-match
   const side = (t, name, games, pt) => `
     <div class="sc-side ${!over && serve === t ? 'serving' : ''}">
-      <div class="sc-name">${!over && serve === t ? '<span class="ball">🎾</span>' : ''}${esc(name)}</div>
+      <div class="sc-serve">${!over && serve === t ? 'Serving' : ''}</div>
+      <div class="sc-name">${esc(name)}</div>
       <div class="sc-games">${games}</div>
       <div class="sc-pt">${over ? '' : pt}</div>
     </div>`;
@@ -55,7 +58,7 @@ function renderScorer(matchId) {
   let winner = '';
   if (over) {
     const w = m.score_a > m.score_b ? na : m.score_b > m.score_a ? nb : null;
-    winner = `<div class="winner-banner"><div class="winner-banner-text">${w ? `🏆 ${esc(w)} win ${m.score_a}–${m.score_b}` : `Draw ${m.score_a}–${m.score_b}`}</div></div>`;
+    winner = `<div class="winner-banner"><div class="winner-banner-text">${w ? `${esc(w)} win ${m.score_a}–${m.score_b}` : `Draw ${m.score_a}–${m.score_b}`}</div></div>`;
   }
 
   el.innerHTML = `
@@ -63,24 +66,6 @@ function renderScorer(matchId) {
       <a class="back-link" href="#/e/${App.slug}">← Back</a>
       <div class="text-sm text-muted">${esc(where)} · ${esc(formatLabel(fmt))}</div>
     </div>
-
-    ${canEdit && !started && !over ? `
-      <div class="card">
-        <div class="flex-between mb-8">
-          <span class="text-sm">Deuce</span>
-          <div class="seg">
-            <button class="${log.deuce === 'sudden' ? 'active' : ''}" onclick="scorerSetup('deuce','sudden')">Sudden death</button>
-            <button class="${log.deuce === 'full' ? 'active' : ''}" onclick="scorerSetup('deuce','full')">Advantage</button>
-          </div>
-        </div>
-        <div class="flex-between">
-          <span class="text-sm">First serve</span>
-          <div class="seg">
-            <button class="${serve === 'a' ? 'active' : ''}" onclick="scorerSetup('serve','a')">${esc(shortName(na, 'Team A'))}</button>
-            <button class="${serve === 'b' ? 'active' : ''}" onclick="scorerSetup('serve','b')">${esc(shortName(nb, 'Team B'))}</button>
-          </div>
-        </div>
-      </div>` : ''}
 
     <div class="scoreboard">
       ${side('a', na, over ? m.score_a : sc.gA, lbl.a)}
@@ -98,13 +83,38 @@ function renderScorer(matchId) {
       </div>` : ''}
 
     ${canEdit ? `
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-outline" style="flex:1" onclick="scorerUndo()" ${started ? '' : 'disabled'}>↩ Undo point</button>
-        ${!over && started ? `<button class="btn btn-outline" style="flex:1" onclick="scorerFinishNow()">⏱ End now</button>` : ''}
-      </div>` : `<p class="text-sm text-muted mt-8" style="text-align:center">Watching live — only the organizer can score.</p>`}
+      <button class="btn btn-outline mt-12" onclick="scorerUndo()" ${started ? '' : 'disabled'}>↩ Undo last point</button>`
+      : `<p class="text-sm text-muted mt-8" style="text-align:center">Watching live. Only the organizer can score.</p>`}
 
-    ${started ? `<button class="btn btn-outline mt-8" onclick="openMatchStats(${m.id})">📊 Match stats</button>` : ''}
+    ${canEdit && !started && !over ? `
+      <div class="card sc-setup">
+        <div class="flex-between mb-8">
+          <span class="text-sm">Deuce</span>
+          <div class="seg">
+            <button class="${log.deuce === 'sudden' ? 'active' : ''}" onclick="scorerSetup('deuce','sudden')">Sudden death</button>
+            <button class="${log.deuce === 'full' ? 'active' : ''}" onclick="scorerSetup('deuce','full')">Advantage</button>
+          </div>
+        </div>
+        <div class="flex-between">
+          <span class="text-sm">First serve</span>
+          <div class="seg">
+            <button class="${serve === 'a' ? 'active' : ''}" onclick="scorerSetup('serve','a')">${esc(shortName(na, 'Team A'))}</button>
+            <button class="${serve === 'b' ? 'active' : ''}" onclick="scorerSetup('serve','b')">${esc(shortName(nb, 'Team B'))}</button>
+          </div>
+        </div>
+      </div>` : ''}
+
+    ${started ? `
+      <div class="sc-extra">
+        <button class="btn btn-outline" onclick="openMatchStats(${m.id})">Match stats</button>
+        ${canEdit && !over ? `<button class="btn btn-outline btn-quiet-danger" onclick="scorerFinishNow()">End match now</button>` : ''}
+      </div>` : ''}
   `;
+
+  // Screen readers hear the score after each point
+  const live = document.getElementById('sr-live');
+  if (live && started) live.textContent = over ? `Final: ${na} ${m.score_a}, ${nb} ${m.score_b}`
+    : `Games: ${na} ${sc.gA}, ${nb} ${sc.gB}. Points ${lbl.a}–${lbl.b}. ${lbl.status || ''}`;
 }
 
 function _scorerMatch() { return App.matches.find(x => x.id === _scorerId); }
@@ -141,7 +151,7 @@ function scorerPoint(side) {
   });
   renderScorer(m.id);
   queueSave({ id: m.id, points: log, score_a: sc.gA, score_b: sc.gB, status: m.status, live: m.live });
-  if (over) toast('🏆 Match saved');
+  if (over) toast('Match saved');
 }
 
 function scorerUndo() {
@@ -158,13 +168,23 @@ function scorerUndo() {
 }
 
 // Time's up: keep the games won so far as the final score
-function scorerFinishNow() {
+async function scorerFinishNow() {
   const m = _scorerMatch();
-  if (!confirm('End the match now with the current games score?')) return;
   const sc = scoreFromLog(m.points);
-  Object.assign(m, { score_a: sc.gA, score_b: sc.gB, status: 'done', live: null });
-  renderScorer(m.id);
-  queueSave({ id: m.id, score_a: sc.gA, score_b: sc.gB, status: 'done', live: null });
+  const na = teamNames(m.team_a), nb = teamNames(m.team_b);
+  const result = sc.gA > sc.gB ? `${esc(na)} win` : sc.gB > sc.gA ? `${esc(nb)} win` : 'It ends as a draw';
+  const ok = await confirmSheet({
+    title: `End at ${sc.gA}–${sc.gB}?`,
+    body: `${result}. The games won so far become the final score. The current game is dropped.`,
+    action: 'End match', danger: true
+  });
+  // Re-read: a realtime refresh may have replaced the match while the sheet was open
+  const cur = _scorerMatch();
+  if (!ok || !cur || cur.status === 'done') return;
+  const fin = scoreFromLog(cur.points);
+  Object.assign(cur, { score_a: fin.gA, score_b: fin.gB, status: 'done', live: null });
+  renderScorer(cur.id);
+  queueSave({ id: cur.id, score_a: fin.gA, score_b: fin.gB, status: 'done', live: null });
 }
 
 // ── QUICK SCORE SHEET ────────────────────────────────────────
@@ -190,9 +210,9 @@ function renderQuickScore() {
     <div class="score-col">
       <div class="score-col-label">${esc(name)}</div>
       <div class="score-controls">
-        <button class="score-btn score-btn-down" onclick="quickAdj('${t}',-1)">−</button>
-        <div class="score-num">${v}</div>
-        <button class="score-btn score-btn-up" onclick="quickAdj('${t}',1)">+</button>
+        <button class="score-btn score-btn-down" onclick="quickAdj('${t}',-1)" aria-label="One game less for ${esc(name)}">−</button>
+        <div class="score-num" aria-live="polite">${v}</div>
+        <button class="score-btn score-btn-up" onclick="quickAdj('${t}',1)" aria-label="One game more for ${esc(name)}">+</button>
       </div>
     </div>`;
   openSheet(`
@@ -203,9 +223,8 @@ function renderQuickScore() {
       <div class="score-vs">VS</div>
       ${col('b', teamNames(m.team_b), _quick.b)}
     </div>
-    <button class="btn btn-green mt-8" onclick="saveQuickScore()">✅ Save score</button>
-    <div style="height:8px"></div>
-    ${m.id ? `<button class="btn btn-outline" onclick="closeSheet();location.hash='#/e/${App.slug}/score/${m.id}'">🎾 Score live instead</button>` : ''}
+    <button class="btn btn-green mt-8" onclick="saveQuickScore()">Save score</button>
+    ${m.id ? `<button class="btn btn-outline mt-8" onclick="closeSheet();location.hash='#/e/${App.slug}/score/${m.id}'">Score point by point instead</button>` : ''}
   `);
 }
 
@@ -220,14 +239,19 @@ function quickAdj(t, d) {
 async function saveQuickScore() {
   const { id, a, b, fmt } = _quick;
   if (!isMatchOver(a, b, fmt) || (fmt.type !== 'total' && a === b)) {
-    if (!confirm(`That isn't a finished ${formatLabel(fmt).toLowerCase()} score. Save anyway?`)) return;
+    const ok = await confirmSheet({
+      title: `Save ${a}–${b}?`,
+      body: `That isn't a finished score for ${esc(formatLabel(fmt).toLowerCase())}. Save it as the final result anyway?`,
+      action: 'Save anyway'
+    });
+    if (!ok) { renderQuickScore(); return; }
   }
   if (id) await apiOp('save_match', { id, score_a: a, score_b: b, status: 'done', live: null });
   else {
     await apiOp('save_match', { season_id: App.seasonId, date: today(), team_a: _quick.team_a, team_b: _quick.team_b,
                                 score_a: a, score_b: b, status: 'done' });
     leagueResetPick();
-    toast('✅ Match saved');
+    toast('Match saved');
   }
   closeSheet();
   rerender();
@@ -246,7 +270,7 @@ function liveCardHtml(m) {
         <span class="live-dot">● LIVE${m.court ? ` · Court ${m.court}` : ''}</span>
         <span class="text-sm text-muted">${esc(lbl.status)}</span>
       </div>
-      <div class="lc-row"><span class="lc-name">${srv === 'a' ? '🎾 ' : ''}${esc(na)}</span><span class="lc-g">${sc.gA}</span><span class="lc-p">${lbl.a}</span></div>
-      <div class="lc-row"><span class="lc-name">${srv === 'b' ? '🎾 ' : ''}${esc(nb)}</span><span class="lc-g">${sc.gB}</span><span class="lc-p">${lbl.b}</span></div>
+      <div class="lc-row"><span class="lc-name">${esc(na)}${srv === 'a' ? ' <span class="serve-dot" title="Serving" aria-label="serving"></span>' : ''}</span><span class="lc-g">${sc.gA}</span><span class="lc-p">${lbl.a}</span></div>
+      <div class="lc-row"><span class="lc-name">${esc(nb)}${srv === 'b' ? ' <span class="serve-dot" title="Serving" aria-label="serving"></span>' : ''}</span><span class="lc-g">${sc.gB}</span><span class="lc-p">${lbl.b}</span></div>
     </a>`;
 }

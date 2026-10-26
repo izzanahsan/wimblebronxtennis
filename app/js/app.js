@@ -22,8 +22,8 @@ async function route() {
     const slug = parts[1];
     if (key) {
       // Organizer link: remember the key, then drop it from the address bar
-      if (await apiCheckKey(slug, key)) { Keys.set(slug, key); toast('🔑 You are an organizer of this event'); }
-      else toast('⚠️ That organizer key is not valid');
+      if (await apiCheckKey(slug, key)) { Keys.set(slug, key); toast('You are an organizer of this event'); }
+      else toast('That organizer link is not valid. You can still view the event.', 4000);
       history.replaceState(null, '', `#/${parts.join('/')}`);
     }
     if (App.slug !== slug) {
@@ -33,7 +33,7 @@ async function route() {
       try { ok = await loadEvent(slug); } catch (e) { console.error(e); }
       if (!ok) {
         App.slug = null;
-        document.getElementById('view').innerHTML = `<div class="empty">Event not found.<br><a href="#/">Go home</a></div>`;
+        document.getElementById('view').innerHTML = `<div class="empty">Event not found. Check the code or link, or ask the organizer to send it again.<br><a href="#/">Go home</a></div>`;
         return;
       }
       subscribe(slug, rerender);
@@ -78,10 +78,10 @@ function setHeader(ev, activeTab) {
     <div class="ev-head">
       <a href="#/" class="ev-home" aria-label="Wimblebronx home">${logoImg(42)}</a>
       <div class="ev-title-wrap">
-        <div class="ev-title">${esc(ev.name)}</div>
+        <h1 class="ev-title">${esc(ev.name)}</h1>
         <div class="ev-sub">
           ${ev.kind === 'day' ? 'Americano' : 'League'}
-          ${ev.kind === 'league' && season ? ` · <span class="season-badge" onclick="openSeasonSwitcher()">${esc(season.name)} ▾</span>` : ''}
+          ${ev.kind === 'league' && season ? ` · <button type="button" class="season-badge" onclick="openSeasonSwitcher()" aria-label="Season: ${esc(season.name)}. Change season">${esc(season.name)} ▾</button>` : ''}
           ${App.isAdmin ? ' · <span class="org-badge">Organizer</span>' : ''}
         </div>
       </div>
@@ -98,14 +98,14 @@ function openInvite() {
   openSheet(`
     <div class="modal-title">Share</div>
     <div class="link-box">
-      <div class="input-label">👀 Players & spectators — view only</div>
+      <div class="input-label">Players & spectators (view only)</div>
       <div class="link-row"><code>${esc(viewLink(s))}</code><button class="btn-mini" onclick="copyText('${viewLink(s)}','View link')">Copy</button></div>
     </div>
     ${App.isAdmin ? `
     <div class="link-box">
-      <div class="input-label">🔑 Organizer — can enter scores and edit</div>
+      <div class="input-label">Organizer (can enter scores and edit)</div>
       <div class="link-row"><code>${esc(organizerLink(s))}</code><button class="btn-mini" onclick="copyText('${organizerLink(s)}','Organizer link')">Copy</button></div>
-      <p class="text-sm text-muted mt-8">Send this only to people who should keep score. Save it somewhere — it's the only way to edit from another phone.</p>
+      <p class="text-sm text-muted mt-8">Send this only to people who should keep score. Save it somewhere safe: it's the only way to edit from another phone.</p>
     </div>` : ''}
     <div class="text-sm text-muted">Event code: <strong>${esc(s)}</strong></div>
   `);
@@ -141,7 +141,7 @@ function renderHome() {
     </div>
 
     ${recent.length ? `
-    <p class="section-title">Your events</p>
+    <h2 class="section-title">Your events</h2>
     ${recent.map(r => `
       <a class="recent-row" href="#/e/${esc(r.slug)}">
         <span class="recent-kind">${r.kind === 'day' ? ICONS.day(18) : ICONS.league(18)}</span>
@@ -171,7 +171,7 @@ function renderCreate(kind) {
   const isDay = kind === 'day';
   document.getElementById('view').innerHTML = `
     <a class="back-link" href="#/">← Back</a>
-    <p class="section-title">${isDay ? 'New match day' : 'New league'}</p>
+    <h1 class="section-title">${isDay ? 'New match day' : 'New league'}</h1>
 
     <div class="card">
       <div class="input-group">
@@ -179,7 +179,7 @@ function renderCreate(kind) {
         <input class="input" id="c-name" maxlength="60" placeholder="${isDay ? 'Sunday Americano' : 'Wimblebronx League'}">
       </div>
       <div class="input-group">
-        <label class="input-label" for="c-players">Players, one per line (${isDay ? '4 or more' : 'you can add more later'})</label>
+        <label class="input-label" for="c-players">Players, one per line or separated by commas (${isDay ? '4 or more' : 'you can add more later'})</label>
         <textarea class="input" id="c-players" rows="6" placeholder="Ana&#10;Ben&#10;Cy&#10;Dee" oninput="updateCreatePreview()"></textarea>
       </div>
     </div>
@@ -187,14 +187,15 @@ function renderCreate(kind) {
     ${isDay ? `
     <div class="card">
       <div class="card-title">Format</div>
-      <div class="format-n-row"><span class="format-n-label">Courts</span><div class="n-picker" id="c-courts"></div></div>
-      <div class="format-n-row"><span class="format-n-label">Rounds</span><div class="n-picker" id="c-rounds"></div></div>
+      <div class="format-n-row" role="group" aria-label="Courts"><span class="format-n-label">Courts</span><div class="n-picker" id="c-courts"></div></div>
+      <div class="format-n-row" role="group" aria-label="Rounds"><span class="format-n-label">Rounds</span><div class="n-picker" id="c-rounds"></div></div>
       <div class="format-selector">
         <button class="fmt-btn" id="c-fmt-total" onclick="createScoring('total')">Fixed games</button>
         <button class="fmt-btn" id="c-fmt-firstto" onclick="createScoring('firstto')">First to N</button>
       </div>
-      <div class="format-n-row"><span class="format-n-label">Games</span><div class="n-picker" id="c-n"></div></div>
-      <div class="format-n-row"><span class="format-n-label">Deuce</span>
+      <p class="fmt-hint" id="c-fmt-hint"></p>
+      <div class="format-n-row" role="group" aria-label="Games"><span class="format-n-label">Games</span><div class="n-picker" id="c-n"></div></div>
+      <div class="format-n-row" role="group" aria-label="Deuce"><span class="format-n-label">Deuce</span>
         <div class="seg" id="c-deuce"></div></div>
       <div class="format-preview" id="c-preview"></div>
     </div>` : `
@@ -248,6 +249,9 @@ function updateCreatePreview() {
     pick('c-n', c.scoring.type === 'total' ? TOTAL_OPTS : FIRSTTO_OPTS, c.scoring.n, 'createN');
     document.getElementById('c-fmt-total').classList.toggle('active', c.scoring.type === 'total');
     document.getElementById('c-fmt-firstto').classList.toggle('active', c.scoring.type === 'firstto');
+    document.getElementById('c-fmt-hint').textContent = c.scoring.type === 'total'
+      ? 'Every match plays the same number of games, so rounds finish together. Draws are possible.'
+      : 'A match ends when one pair reaches the target. Rounds can finish at different times.';
     document.getElementById('c-deuce').innerHTML = `
       <button class="${c.deuce === 'sudden' ? 'active' : ''}" onclick="createDeuce('sudden')">Sudden death</button>
       <button class="${c.deuce === 'full' ? 'active' : ''}" onclick="createDeuce('full')">Advantage</button>`;
@@ -280,7 +284,7 @@ async function submitCreate() {
   const names = createPlayers();
   const isDay = c.kind === 'day';
   const name = document.getElementById('c-name').value.trim() || (isDay ? `Match day ${formatDate(today())}` : 'My League');
-  if (isDay && names.length < 4) { toast('⚠️ Add at least 4 players'); return; }
+  if (isDay && names.length < 4) { toast(`Add at least 4 players (${names.length} so far)`); document.getElementById('c-players').focus(); return; }
 
   const btn = document.getElementById('c-go');
   btn.disabled = true; btn.textContent = 'Creating…';
@@ -304,7 +308,7 @@ async function submitCreate() {
     setTimeout(openInvite, 300);
   } catch (e) {
     console.error(e);
-    toast('❌ Could not create: ' + (e.message || e), 5000);
+    toast('Could not create it: ' + (e.message || e) + '. Check your connection and try again.', 5000);
     btn.disabled = false; btn.textContent = 'Try again';
   }
 }

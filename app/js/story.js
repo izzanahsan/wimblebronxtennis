@@ -240,9 +240,11 @@ function renderPodium(ctx, rawPodium, startY, s) {
   }
 
   const radius = Math.round(12 * s);
+  const MEDAL = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' };
 
   for (const cfg of configs) {
     if (!cfg.item) continue;
+    if (cfg.item.rank) { cfg.rank = String(cfg.item.rank); cfg.color = MEDAL[cfg.item.rank] || cfg.color; }
 
     // Card background & border
     ctx.save();
@@ -427,9 +429,11 @@ function renderMatches(ctx, rawMatches, startY, scale, maxCount, accent) {
 
     let labelOffset = 0;
     if (m.label) {
-      labelOffset = Math.round(130 * scale);
+      // The round/court label stays small so team names keep the room
+      const ls = Math.min(scale, 1.1);
+      labelOffset = Math.round(130 * ls);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.font = `500 ${Math.round(18 * scale)}px "DM Sans", sans-serif`;
+      ctx.font = `500 ${Math.round(18 * ls)}px "DM Sans", sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(fitText(ctx, m.label, labelOffset - 12), 82, matchY + matchItemH / 2);
@@ -553,38 +557,32 @@ async function renderStory(opts = {}) {
   ctx.shadowBlur = 12;
   ctx.shadowOffsetY = 2;
 
+  const logo = await loadStoryLogo();
+  const BADGE = 150;
+  const textMaxW = logo ? 952 - BADGE - 28 : 952;
+  if (logo) ctx.drawImage(logo, 1016 - BADGE, 214, BADGE, BADGE);
+
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '86px "Bebas Neue", sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(fitText(ctx, title, 952), 64, 236);
+  ctx.fillText(fitText(ctx, title, textMaxW), 64, 236);
 
   let headerBottomY = 236 + 90;
   if (subtitle) {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
     ctx.font = '500 28px "DM Sans", sans-serif';
-    ctx.fillText(fitText(ctx, subtitle, 952), 64, 326);
+    ctx.fillText(fitText(ctx, subtitle, textMaxW), 64, 326);
     headerBottomY = 326 + 38;
   }
   ctx.restore();
 
-  // Footer (y ≈ 1840): club badge + name, centred as one unit
-  const logo = await loadStoryLogo();
+  // Footer (y ≈ 1840): the club name; the badge already leads the header
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-  ctx.font = '500 24px "DM Sans", sans-serif';
+  ctx.font = '500 26px "DM Sans", sans-serif';
   ctx.textBaseline = 'middle';
-  if (logo) {
-    const size = 84, gap = 16;
-    const textW = footerText ? ctx.measureText(footerText).width : 0;
-    const total = size + (footerText ? gap + textW : 0);
-    const x0 = 540 - total / 2;
-    ctx.drawImage(logo, x0, 1840 - size / 2, size, size);
-    ctx.textAlign = 'left';
-    if (footerText) ctx.fillText(footerText, x0 + size + gap, 1840);
-  } else {
-    ctx.textAlign = 'center';
-    ctx.fillText(footerText, 540, 1840);
-  }
+  ctx.textAlign = 'center';
+  if (footerText) ctx.fillText(footerText, 540, 1840);
 
   const rawPodium = Array.isArray(opts.podium) ? opts.podium.slice(0, 3) : [];
   const rawRows = Array.isArray(opts.rows) ? opts.rows : [];
@@ -696,6 +694,7 @@ async function renderStory(opts = {}) {
     let maxMatches = Math.min(12, rawMatches.length);
     if (rawMatches.length > 12) maxMatches = 11;
 
+    const PODIUM_MAX = 1.5;
     const sectionGapsTotal = Math.max(0, activeSectionKeys.length - 1) * 28;
     const netHeightBudget = totalAvailableH - sectionGapsTotal;
 
@@ -703,7 +702,7 @@ async function renderStory(opts = {}) {
       let h = 0;
       for (const key of activeSectionKeys) {
         if (key === 'podium') {
-          h += Math.round(190 * s);
+          h += Math.round(190 * Math.min(s, PODIUM_MAX));
         } else if (key === 'rows') {
           const slots = rawRows.length <= rCount ? rawRows.length : rCount + 1;
           h += Math.round(36 * s) + slots * Math.round(52 * s);
@@ -730,7 +729,7 @@ async function renderStory(opts = {}) {
     }
 
     let scaleLow = minScale;
-    let scaleHigh = 1.4;
+    let scaleHigh = 1.9;
     for (let iter = 0; iter < 12; iter++) {
       const mid = (scaleLow + scaleHigh) / 2;
       if (measureRequiredHeight(mid, maxRows, maxMatches) <= netHeightBudget) {
@@ -741,19 +740,22 @@ async function renderStory(opts = {}) {
     }
     const scale = scaleLow;
 
-    const totalCalculatedH = measureRequiredHeight(scale, maxRows, maxMatches) + sectionGapsTotal;
-    let currentY = startContentY + Math.max(0, Math.floor((netHeightBudget - totalCalculatedH) / 3));
+    // Leftover height opens up the gaps between sections, so the frame reads as full
+    const slack = Math.max(0, netHeightBudget - measureRequiredHeight(scale, maxRows, maxMatches));
+    const gap = 28 + Math.min(80, Math.floor(slack / (activeSectionKeys.length + 1)));
+    const usedH = measureRequiredHeight(scale, maxRows, maxMatches) + Math.max(0, activeSectionKeys.length - 1) * gap;
+    let currentY = startContentY + Math.max(0, Math.floor((totalAvailableH - usedH) / 2));
 
     for (const key of activeSectionKeys) {
       if (key === 'podium') {
-        const h = renderPodium(ctx, rawPodium, currentY, scale);
-        currentY += h + 28;
+        const h = renderPodium(ctx, rawPodium, currentY, Math.min(scale, PODIUM_MAX));
+        currentY += h + gap;
       } else if (key === 'rows') {
         const h = renderStandings(ctx, rawRows, currentY, scale, maxRows, accent);
-        currentY += h + 28;
+        currentY += h + gap;
       } else if (key === 'matches') {
         const h = renderMatches(ctx, rawMatches, currentY, scale, maxMatches, accent);
-        currentY += h + 28;
+        currentY += h + gap;
       }
     }
   }

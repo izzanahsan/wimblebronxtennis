@@ -33,9 +33,10 @@
 </div>
 
 <main class="page active" id="view"></main>
+<div class="sr-only" id="sr-live" aria-live="polite"></div>
 
 <div class="modal-overlay" id="sheet" onclick="if(event.target===this)closeSheet()">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" tabindex="-1">
     <button class="modal-close" onclick="closeSheet()" aria-label="Close">×</button>
     <div id="sheet-body"></div>
   </div>

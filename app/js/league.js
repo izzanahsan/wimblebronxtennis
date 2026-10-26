@@ -3,7 +3,7 @@ const LEAGUE_TABS = [
   { id: 'table',   label: 'Standings', render: () => renderLeagueTable() },
   { id: 'play',    label: 'Play',      render: () => renderLeaguePlay() },
   { id: 'history', label: 'History',   render: () => renderLeagueHistory() },
-  { id: 'share',   label: '📸 Share',  render: () => renderShare() },
+  { id: 'share',   label: 'Share',     render: () => renderShare() },
   { id: 'manage',  label: 'Manage',    render: () => renderLeagueManage(), admin: true }
 ];
 
@@ -44,29 +44,33 @@ function renderLeagueTable() {
   document.getElementById('view').innerHTML = `
     ${live.map(liveCardHtml).join('')}
     <div class="flex-between">
-      <p class="section-title" style="margin:0">Standings</p>
+      <h2 class="section-title" style="margin:0">Standings</h2>
       <span class="text-sm text-muted">${esc(formatLabel(s?.format))}</span>
     </div>
-    ${s?.winner ? `<div class="text-sm" style="margin:6px 0 10px">🏆 Season winner: <strong>${esc(s.winner)}</strong></div>` : '<div style="height:10px"></div>'}
+    ${s?.winner ? `<div class="text-sm" style="margin:6px 0 10px">Season winner: <strong>${esc(s.winner)}</strong></div>` : '<div style="height:10px"></div>'}
     <div class="card">
-    ${rows.length ? rows.map((r, i) => {
+    ${rows.length ? (() => {
+      const ranks = tiedRanks(rows, (a, b) => a.pts === b.pts && a.wins === b.wins && a.diff === b.diff && a.gamesWon === b.gamesWon);
+      return rows.map((r, i) => {
       const p = player(r.id);
+      const rank = ranks[i];
+      const medal = r.played > 0 && rank <= 3 ? `top${rank}` : '';
       const dots = Array.from({ length: 5 }, (_, j) =>
         `<div class="win-dot ${j < r.last5.length ? (r.last5[j] ? 'w' : 'l') : ''}"></div>`).join('');
       const diff = r.diff > 0 ? `+${r.diff}` : r.diff === 0 ? '±0' : r.diff;
       const record = `${r.wins}W – ${r.played - r.wins}L · ${r.pts} pts · games ${diff}`;
       return `
-      <div class="lb-row" onclick="openPlayerStats(${r.id}, seasonDone(), '${record}', season()?.name)">
-        <div class="lb-rank ${i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : ''}">${i + 1}</div>
+      <div class="lb-row" role="button" tabindex="0" aria-label="${rank}. ${esc(p.name)}, ${r.pts} points. Open stats" onclick="openPlayerStats(${r.id}, seasonDone(), '${record}', season()?.name)">
+        <div class="lb-rank ${medal}">${rank}</div>
         ${playerAvatar(p, 34)}
         <div class="lb-info">
           <div class="lb-name">${esc(p.name)}</div>
-          <div class="wins-bar">${dots}</div>
+          <div class="wins-bar" aria-hidden="true">${dots}</div>
           <div class="lb-sub">${r.wins}W · ${r.played} played · <span class="${r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : ''}">${diff}</span></div>
         </div>
         <div class="lb-pts">${r.pts}</div>
       </div>`;
-    }).join('') : '<div class="empty">No players yet.</div>'}
+    }).join(''); })() : '<div class="empty">No players yet.</div>'}
     </div>
     <p class="text-sm text-muted">Win = 3 pts · Loss = 1 pt. Tap a player for stats.</p>
   `;
@@ -76,9 +80,9 @@ function openSeasonSwitcher() {
   openSheet(`
     <div class="modal-title">Season</div>
     ${[...App.seasons].reverse().map(s => `
-      <div class="season-switch-row ${s.id === App.seasonId ? 'active-season' : ''}" onclick="switchSeason(${s.id})">
+      <div class="season-switch-row ${s.id === App.seasonId ? 'active-season' : ''}" role="button" tabindex="0" aria-current="${s.id === App.seasonId}" onclick="switchSeason(${s.id})">
         <div class="season-switch-name">${esc(s.name)}${s.id === App.seasonId ? ' ✓' : ''}</div>
-        <div class="season-switch-meta">${formatDate(s.start_date)} – ${formatDate(s.end_date)} · ${seasonDone(s.id).length} matches${s.winner ? ` · 🏆 ${esc(s.winner)}` : ''}</div>
+        <div class="season-switch-meta">${formatDate(s.start_date)} – ${formatDate(s.end_date)} · ${seasonDone(s.id).length} matches${s.winner ? ` · Winner: ${esc(s.winner)}` : ''}</div>
       </div>`).join('')}
   `);
 }
@@ -117,8 +121,8 @@ function renderLeaguePlay() {
   el.innerHTML = `
     ${live.map(liveCardHtml).join('')}
     <div class="card">
-      <div class="card-title">🎲 Pick teams</div>
-      <button class="random-btn" onclick="leagueRandomize()">⚡ Randomize doubles</button>
+      <div class="card-title">Pick teams</div>
+      <button class="random-btn btn-icon" onclick="leagueRandomize()">${ICONS.shuffle(16)}Randomize doubles</button>
       <div class="team-box"><div class="team-label team-a-label">TEAM A</div><div class="player-select">${chips('a')}</div></div>
       <div class="team-box"><div class="team-label team-b-label">TEAM B</div><div class="player-select">${chips('b')}</div></div>
       <p class="text-sm text-muted mt-8">${esc(_pick.hint || `Team A: ${_pick.a.length}/2 · Team B: ${_pick.b.length}/2 — 1 each for singles`)}</p>
@@ -129,7 +133,7 @@ function renderLeaguePlay() {
       <p class="text-sm text-muted mb-8">${esc(formatLabel(season().format))}</p>
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline" onclick="openQuickScoreNew(_pick.a, _pick.b)">Enter result</button>
-        <button class="btn btn-green" onclick="leagueStartLive()">🎾 Score live</button>
+        <button class="btn btn-green" onclick="leagueStartLive()">Score live</button>
       </div>
     </div>` : ''}
     <p class="text-sm text-muted">Greyed-out players are marked away or are on court now.</p>
@@ -194,7 +198,7 @@ function renderLeagueHistory() {
     <div class="card">
       <div class="flex-between mb-8">
         <div class="card-title" style="margin:0">${formatDate(d)}${d === today() ? ' · Today' : ''}</div>
-        <a class="btn-mini" href="#/e/${App.slug}/share" onclick="_shareDate='${d}'">📸 Share day</a>
+        <a class="btn-mini" href="#/e/${App.slug}/share" onclick="_shareDate='${d}'">Share day</a>
       </div>
       ${ms.map(m => {
         const aWin = m.score_a > m.score_b;
@@ -204,8 +208,8 @@ function renderLeagueHistory() {
           <div class="mr-score"><span class="${aWin ? 'score-win' : ''}">${m.score_a}</span><span class="text-muted">–</span><span class="${!aWin ? 'score-win' : ''}">${m.score_b}</span></div>
           <div class="mr-team mr-right ${!aWin ? 'win' : ''}">${esc(teamNames(m.team_b))}</div>
           <div class="mr-actions">
-            ${m.points?.w ? `<button class="btn-mini" onclick="openMatchStats(${m.id})">📊</button>` : ''}
-            ${App.isAdmin ? `<button class="btn-mini" onclick="leagueDeleteMatch(${m.id})">🗑</button>` : ''}
+            ${m.points?.w ? `<button class="btn-mini btn-mini-icon" onclick="openMatchStats(${m.id})" aria-label="Match stats">${ICONS.stats(16)}</button>` : ''}
+            ${App.isAdmin ? `<button class="btn-mini btn-mini-icon" onclick="leagueDeleteMatch(${m.id})" aria-label="Delete match">${ICONS.trash(16)}</button>` : ''}
           </div>
         </div>`;
       }).join('')}
@@ -214,7 +218,12 @@ function renderLeagueHistory() {
 
 async function leagueDeleteMatch(id) {
   const m = App.matches.find(x => x.id === id);
-  if (!confirm(`Delete ${teamNames(m.team_a)} ${m.score_a}–${m.score_b} ${teamNames(m.team_b)}?`)) return;
+  const ok = await confirmSheet({
+    title: 'Delete this match?',
+    body: `${esc(teamNames(m.team_a))} <strong>${m.score_a}–${m.score_b}</strong> ${esc(teamNames(m.team_b))}. The standings update straight away.`,
+    action: 'Delete match', danger: true
+  });
+  if (!ok) return;
   await apiOp('delete_match', { id });
   rerender();
 }
@@ -227,19 +236,19 @@ function renderLeagueManage() {
       <p class="text-sm text-muted mb-8">Toggle off anyone who's away — the randomizer skips them. Tap a photo to change it.</p>
       ${App.players.map(p => `
         <div class="avail-row">
-          <label style="cursor:pointer;position:relative">
+          <label class="avatar-pick" aria-label="Change photo of ${esc(p.name)}">
             ${playerAvatar(p, 34)}
-            <input type="file" accept="image/*" style="display:none" onchange="uploadPlayerPhoto(${p.id}, this.files[0])">
+            <input type="file" accept="image/*" class="sr-only" onchange="uploadPlayerPhoto(${p.id}, this.files[0])">
           </label>
           <div class="avail-name" style="opacity:${p.active ? 1 : .45}">${esc(p.name)}</div>
-          <button class="btn-mini" onclick="leagueDeletePlayer(${p.id})" aria-label="Delete">🗑</button>
+          <button class="btn-mini btn-mini-icon" onclick="leagueDeletePlayer(${p.id})" aria-label="Delete ${esc(p.name)}">${ICONS.trash(16)}</button>
           <label class="toggle">
-            <input type="checkbox" ${p.active ? 'checked' : ''} onchange="apiOp('update_player',{id:${p.id},active:this.checked}).then(rerender)">
+            <input type="checkbox" aria-label="${esc(p.name)} is available" ${p.active ? 'checked' : ''} onchange="apiOp('update_player',{id:${p.id},active:this.checked}).then(rerender)">
             <span class="toggle-slider"></span>
           </label>
         </div>`).join('')}
       <div style="display:flex;gap:8px;margin-top:10px">
-        <input class="input" id="m-new-player" placeholder="New player" maxlength="24" onkeydown="if(event.key==='Enter')leagueAddPlayer()">
+        <input class="input" id="m-new-player" placeholder="New player" aria-label="New player's name" maxlength="24" onkeydown="if(event.key==='Enter')leagueAddPlayer()">
         <button class="btn btn-primary" style="width:auto" onclick="leagueAddPlayer()">Add</button>
       </div>
     </div>
@@ -251,9 +260,9 @@ function renderLeagueManage() {
           <div class="season-info-block">
             <div class="season-name">${esc(s.name)} ${s.id === App.seasonId ? '<span class="pos" style="font-size:11px">● viewing</span>' : ''}</div>
             <div class="season-dates">${formatDate(s.start_date)} – ${formatDate(s.end_date)} · ${esc(formatLabel(s.format))}</div>
-            <div class="text-sm text-muted">${seasonDone(s.id).length} matches${s.winner ? ` · 🏆 ${esc(s.winner)}` : ''}</div>
+            <div class="text-sm text-muted">${seasonDone(s.id).length} matches${s.winner ? ` · Winner: ${esc(s.winner)}` : ''}</div>
           </div>
-          ${App.seasons.length > 1 ? `<button class="btn-mini" onclick="leagueDeleteSeason(${s.id})">🗑</button>` : ''}
+          ${App.seasons.length > 1 ? `<button class="btn-mini btn-mini-icon" onclick="leagueDeleteSeason(${s.id})" aria-label="Delete ${esc(s.name)}">${ICONS.trash(16)}</button>` : ''}
         </div>`).join('')}
       <button class="btn btn-outline mt-8" onclick="openNewSeason()">+ New season</button>
     </div>
@@ -261,7 +270,7 @@ function renderLeagueManage() {
     <div class="card">
       <div class="card-title">League</div>
       <div style="display:flex;gap:8px">
-        <input class="input" id="m-name" value="${esc(App.event.name)}" maxlength="60">
+        <input class="input" id="m-name" value="${esc(App.event.name)}" aria-label="League name" maxlength="60">
         <button class="btn btn-primary" style="width:auto" onclick="renameEvent()">Save</button>
       </div>
       <div class="flex-between mt-8">
@@ -271,7 +280,7 @@ function renderLeagueManage() {
           <button class="${defaultDeuce() === 'full' ? 'active' : ''}" onclick="leagueSetDeuce('full')">Advantage</button>
         </div>
       </div>
-      <button class="btn btn-danger mt-8" onclick="deleteEvent()">🗑 Delete league</button>
+      <button class="btn btn-danger btn-icon mt-12" onclick="deleteEvent()">${ICONS.trash(16)}Delete league</button>
     </div>
   `;
 }
@@ -284,7 +293,12 @@ async function leagueAddPlayer() {
 }
 
 async function leagueDeletePlayer(id) {
-  if (!confirm(`Delete ${player(id).name}? Their past matches stay but show "?".`)) return;
+  const ok = await confirmSheet({
+    title: `Delete ${player(id).name}?`,
+    body: `Their past matches stay in the history, but their name shows as "?". To skip them for a while, switch them off instead.`,
+    action: 'Delete player', danger: true
+  });
+  if (!ok) return;
   await apiOp('delete_player', { id });
   rerender();
 }
@@ -296,7 +310,12 @@ async function leagueSetDeuce(d) {
 
 async function leagueDeleteSeason(id) {
   const s = App.seasons.find(x => x.id === id);
-  if (!confirm(`Delete "${s.name}" and its ${seasonDone(id).length} matches?`)) return;
+  const ok = await confirmSheet({
+    title: `Delete "${s.name}"?`,
+    body: `This also deletes its ${seasonDone(id).length} matches. This can't be undone.`,
+    action: 'Delete season', danger: true
+  });
+  if (!ok) return;
   await apiOp('delete_season', { id });
   if (App.seasonId === id) App.seasonId = App.seasons.at(-1)?.id ?? null;
   rerender();
@@ -308,11 +327,11 @@ function openNewSeason() {
   openSheet(`
     <div class="modal-title">New season</div>
     <p class="text-sm text-muted mb-8">The current leader of ${esc(season()?.name || 'this season')} is recorded as its winner.</p>
-    <div class="input-group"><label class="input-label">Name</label>
+    <div class="input-group"><label class="input-label" for="ns-name">Name</label>
       <input class="input" id="ns-name" value="Season ${App.seasons.length + 1}" maxlength="40"></div>
     <div style="display:flex;gap:10px">
-      <div class="input-group" style="flex:1"><label class="input-label">Start</label><input class="input" type="date" id="ns-start" value="${today()}"></div>
-      <div class="input-group" style="flex:1"><label class="input-label">End</label><input class="input" type="date" id="ns-end" value="${end.toLocaleDateString('en-CA')}"></div>
+      <div class="input-group" style="flex:1"><label class="input-label" for="ns-start">Start</label><input class="input" type="date" id="ns-start" value="${today()}"></div>
+      <div class="input-group" style="flex:1"><label class="input-label" for="ns-end">End</label><input class="input" type="date" id="ns-end" value="${end.toLocaleDateString('en-CA')}"></div>
     </div>
     <div class="format-selector">
       <button class="fmt-btn ${_nsFmt.type === 'firstto' ? 'active' : ''}" onclick="_nsFmt={type:'firstto',n:4};openNewSeason()">First to N</button>
@@ -320,7 +339,7 @@ function openNewSeason() {
     </div>
     <div class="n-picker mb-8">${(_nsFmt.type === 'bo' ? BO_OPTS : FIRSTTO_OPTS).map(n =>
       `<button type="button" class="n-opt ${n === _nsFmt.n ? 'active' : ''}" aria-pressed="${n === _nsFmt.n}" onclick="_nsFmt.n=${n};openNewSeason()">${n}</button>`).join('')}</div>
-    <button class="btn btn-green" onclick="createSeason()">🚀 Start season</button>
+    <button class="btn btn-green" onclick="createSeason()">Start season</button>
   `);
 }
 
@@ -336,7 +355,7 @@ async function createSeason() {
   });
   App.seasonId = s.id;
   closeSheet();
-  toast(`✅ ${name} started`);
+  toast(`${name} started`);
   location.hash = `#/e/${App.slug}/table`;
 }
 
@@ -357,7 +376,7 @@ async function uploadPlayerPhoto(playerId, file) {
     if (error) throw error;
     const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(path);
     await apiOp('update_player', { id: playerId, photo_url: publicUrl });
-    toast('✅ Photo updated');
+    toast('Photo updated');
     rerender();
   } catch (e) {
     console.error(e);

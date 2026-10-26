@@ -6,12 +6,14 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ── CONSTANTS ────────────────────────────────────────────────
+// Avatar [background, initials]: deep tones that sit with the badge;
+// every pair is at least 5.9:1 so initials read in sunlight
 const COLORS = [
-  ['#6B21A8','#E9D5FF'], ['#16A34A','#BBF7D0'], ['#DC2626','#FECACA'],
-  ['#D97706','#FDE68A'], ['#0891B2','#A5F3FC'], ['#7C3AED','#DDD6FE'],
-  ['#B45309','#FDE68A'], ['#0F766E','#99F6E4'], ['#BE185D','#FBCFE8'],
-  ['#1D4ED8','#BFDBFE'], ['#4D7C0F','#D9F99D'], ['#9D174D','#FBCFE8'],
-  ['#78716C','#E7E5E0']
+  ['#54138B','#E9D5FF'], ['#026632','#C9F5DA'], ['#8C2340','#FBD5E0'],
+  ['#7A4A00','#FDE7B0'], ['#0E5560','#BFF0F5'], ['#3E2A8C','#DDD6FE'],
+  ['#6B3F12','#F5DFC0'], ['#0F5E52','#B9F2E6'], ['#8A1D5C','#FBCFE8'],
+  ['#1E3A8A','#BFDBFE'], ['#3F5F0A','#DDF5B0'], ['#6B1530','#FBCFE0'],
+  ['#4A4540','#EDEAE4']
 ];
 
 const PT_LABELS    = ['0', '15', '30', '40'];

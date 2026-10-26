@@ -18,12 +18,13 @@ function storyData() {
 
   if (App.event.kind === 'day') {
     const st = dayStandings().filter(r => r.played);
+    const rk = tiedRanks(st, (x, y) => x.points === y.points && x.wins === y.wins && x.diff === y.diff);
     const done = App.matches.filter(m => m.status === 'done').sort((a, b) => a.round - b.round || a.court - b.court);
     return {
       title: App.event.name,
       subtitle: `Americano · ${formatDate(done[0]?.date || today())}`,
-      podium: st.slice(0, 3).map(r => ({ name: pName(r.id), value: `${r.points} games` })),
-      rows: st.map((r, i) => ({ rank: i + 1, name: pName(r.id), value: String(r.points), sub: `${r.wins}W ${r.draws ? r.draws + 'D ' : ''}${r.losses}L` })),
+      podium: st.slice(0, 3).map((r, i) => ({ rank: rk[i], name: pName(r.id), value: `${r.points} games` })),
+      rows: st.map((r, i) => ({ rank: rk[i], name: pName(r.id), value: String(r.points), sub: `${r.wins}W ${r.draws ? r.draws + 'D ' : ''}${r.losses}L` })),
       matches: done.map(m => ({ a: teamNames(m.team_a), b: teamNames(m.team_b), sa: m.score_a, sb: m.score_b, label: `R${m.round} · C${m.court}` }))
     };
   }
@@ -36,11 +37,12 @@ function storyData() {
   const day = leagueTable(ms).filter(r => r.played)
     .sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.gamesWon - a.gamesWon);
   const diff = d => d > 0 ? `+${d}` : String(d);
+  const rk = tiedRanks(day, (x, y) => x.wins === y.wins && x.diff === y.diff && x.gamesWon === y.gamesWon);
   return {
     title: App.event.name,
     subtitle: `${season()?.name || ''} · ${formatDate(_shareDate)}`,
-    podium: day.slice(0, 3).map(r => ({ name: pName(r.id), value: `${r.wins}W ${diff(r.diff)}` })),
-    rows: day.map((r, i) => ({ rank: i + 1, name: pName(r.id), value: `${r.wins}W`, sub: `${r.played} played · ${diff(r.diff)}` })),
+    podium: day.slice(0, 3).map((r, i) => ({ rank: rk[i], name: pName(r.id), value: `${r.wins}W ${diff(r.diff)}` })),
+    rows: day.map((r, i) => ({ rank: rk[i], name: pName(r.id), value: `${r.wins}W`, sub: `${r.played} played · ${diff(r.diff)}` })),
     matches: ms.map(m => ({ a: teamNames(m.team_a), b: teamNames(m.team_b), sa: m.score_a, sb: m.score_b }))
   };
 }
@@ -53,26 +55,26 @@ function renderShare() {
 
   const el = document.getElementById('view');
   if (!hasResults) {
-    el.innerHTML = '<div class="empty">No finished matches yet — results will show up here for your story.</div>';
+    el.innerHTML = '<div class="empty">No finished matches yet. Results show up here for your story as soon as the first match ends.</div>';
     return;
   }
 
   const toggle = (k, label) => `<button class="${_shareSections[k] ? 'active' : ''}" onclick="_shareSections.${k}=!_shareSections.${k};renderStoryPreview(true)">${label}</button>`;
 
   el.innerHTML = `
-    <p class="section-title">📸 Story for Instagram</p>
+    <h2 class="section-title">Story for Instagram</h2>
     ${isLeague ? `
       <div class="input-group">
-        <label class="input-label">Day</label>
-        <select class="input" onchange="_shareDate=this.value;renderStoryPreview()">
+        <label class="input-label" for="share-day">Day</label>
+        <select class="input" id="share-day" onchange="_shareDate=this.value;renderStoryPreview()">
           ${dates.map(d => `<option value="${d}" ${d === _shareDate ? 'selected' : ''}>${formatDate(d)}${d === today() ? ' (today)' : ''}</option>`).join('')}
         </select>
       </div>` : ''}
 
     <div class="card">
       <label class="btn btn-outline" style="display:block">
-        ${_sharePhoto ? '🖼 Change background photo' : '🖼 Add your photo (group pic, court…)'}
-        <input type="file" accept="image/*" style="display:none" onchange="pickSharePhoto(this.files[0])">
+        ${_sharePhoto ? 'Change background photo' : 'Add your photo (group pic, court…)'}
+        <input type="file" accept="image/*" class="sr-only" onchange="pickSharePhoto(this.files[0])">
       </label>
       ${_sharePhoto ? `<button class="btn-mini mt-8" onclick="_sharePhoto=null;renderShare()">Remove photo</button>` : ''}
       <div class="flex-between mt-8">
@@ -90,7 +92,7 @@ function renderShare() {
 
     <div class="story-preview-wrap"><div class="story-preview" id="story-preview"><div class="loading-spinner"></div></div></div>
 
-    <button class="btn btn-green" id="story-share-btn" onclick="shareStory()" disabled>📤 Share to Instagram</button>
+    <button class="btn btn-green" id="story-share-btn" onclick="shareStory()" disabled>Share to Instagram</button>
     <p class="text-sm text-muted mt-8" style="text-align:center">On your phone this opens the share sheet — pick Instagram → Story. Elsewhere it downloads the image.</p>
   `;
   renderStoryPreview();
@@ -102,7 +104,7 @@ async function pickSharePhoto(file) {
     if (!_sharePhoto) _shareLayout = 'photo'; // first photo: make it visible
     _sharePhoto = await loadImageFromFile(file);
     renderShare();
-  } catch (e) { toast('❌ ' + e.message, 4000); }
+  } catch (e) { toast(e.message, 4000); }
 }
 
 let _previewSeq = 0;
@@ -129,5 +131,5 @@ async function shareStory() {
   if (!_shareBlob) return;
   const name = `${App.event.name}-${App.event.kind === 'league' ? _shareDate : today()}`.replace(/[^\w-]+/g, '-').toLowerCase();
   const res = await shareOrDownload(_shareBlob, name + '.png');
-  if (res === 'downloaded') toast('⬇️ Image saved — post it from your gallery');
+  if (res === 'downloaded') toast('Image saved. Post it from your gallery.');
 }
