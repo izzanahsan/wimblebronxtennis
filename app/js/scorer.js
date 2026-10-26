@@ -58,7 +58,7 @@ function renderScorer(matchId) {
   if (!m) { el.innerHTML = '<div class="empty">Match not found.</div>'; return; }
 
   const fmt  = matchFormat(m);
-  const log  = m.points?.w != null ? m.points : { deuce: defaultDeuce(), w: '' };
+  const log  = m.points?.w != null ? m.points : { deuce: defaultDeuce(), w: '', s: '' };
   const sc   = scoreFromLog(log);
   const over = m.status === 'done';
   const started = log.w.length > 0;
@@ -135,7 +135,7 @@ function _scorerMatch() { return App.matches.find(x => x.id === _scorerId); }
 
 function scorerSetup(what, val) {
   const m = _scorerMatch();
-  const log = { deuce: defaultDeuce(), w: '', ...(m.points || {}) };
+  const log = { deuce: defaultDeuce(), w: '', s: '', ...(m.points || {}) };
   if (what === 'deuce') log.deuce = val;
   m.points = log;
   renderScorer(m.id);
@@ -147,7 +147,8 @@ function scorerPoint(side) {
   if (!m || m.status === 'done') return;
   if (navigator.vibrate) navigator.vibrate(15);
 
-  const log = { deuce: defaultDeuce(), w: '', ...(m.points || {}) };
+  // s stays '' : phones still on the old app read it, and crash without it
+  const log = { deuce: defaultDeuce(), w: '', s: '', ...(m.points || {}) };
   log.w += side;
   const sc = scoreFromLog(log);
 
