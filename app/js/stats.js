@@ -2,9 +2,8 @@
 // A live-scored match stores its points as { deuce, w, s }:
 //   deuce — 'sudden' | 'full'
 //   w     — point winners, one char per point ('A' / 'B')
-//   s     — serving team for each point ('A' / 'B'), used only by the live scorer
-// Stats below use only who won each point: serve-based numbers would rest
-// on the first-serve setting being right, so they're left out.
+//   s     — serving team per point (older matches only; no longer recorded)
+// Everything below uses only who won each point.
 
 // Who wins the game at this point count? null = game still going
 function gameWinner(a, b, rule) {
@@ -25,7 +24,7 @@ function isGamePointFor(side, a, b, rule) {
 }
 
 // Score labels + status line for the current game
-function pointLabels(a, b, rule, serve, nameA = 'Team A', nameB = 'Team B') {
+function pointLabels(a, b, rule, nameA = 'Team A', nameB = 'Team B') {
   let la = PT_LABELS[Math.min(a, 3)], lb = PT_LABELS[Math.min(b, 3)], status = '';
 
   if (a >= 3 && b >= 3) {
@@ -35,10 +34,9 @@ function pointLabels(a, b, rule, serve, nameA = 'Team A', nameB = 'Team B') {
     else                    { la = '—'; lb = 'AD'; status = `Advantage ${nameB}`; }
   }
 
-  if (serve && !(rule === 'sudden' && a >= 3 && b >= 3)) {
-    const srv = serve.toUpperCase(), rcv = srv === 'A' ? 'B' : 'A';
-    if (isGamePointFor(rcv, a, b, rule))      status = '🔥 Break point' + (status ? ` · ${status}` : '');
-    else if (isGamePointFor(srv, a, b, rule)) status = 'Game point'     + (status ? ` · ${status}` : '');
+  if (!(a >= 3 && b >= 3)) {
+    if (isGamePointFor('A', a, b, rule))      status = `Game point ${nameA}`;
+    else if (isGamePointFor('B', a, b, rule)) status = `Game point ${nameB}`;
   }
   return { a: la, b: lb, status };
 }

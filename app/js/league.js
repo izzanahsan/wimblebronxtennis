@@ -153,7 +153,7 @@ async function leagueStartLive() {
   const m = await apiOp('save_match', {
     season_id: App.seasonId, date: today(), team_a: _pick.a, team_b: _pick.b,
     score_a: 0, score_b: 0, status: 'live',
-    points: { deuce: defaultDeuce(), w: '', s: '' }, live: { serve: 'a' }
+    points: { deuce: defaultDeuce(), w: '' }, live: {}
   });
   leagueResetPick();
   location.hash = `#/e/${App.slug}/score/${m.id}`;

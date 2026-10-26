@@ -58,21 +58,19 @@ function renderScorer(matchId) {
   if (!m) { el.innerHTML = '<div class="empty">Match not found.</div>'; return; }
 
   const fmt  = matchFormat(m);
-  const log  = m.points?.w != null ? m.points : { deuce: defaultDeuce(), w: '', s: '' };
+  const log  = m.points?.w != null ? m.points : { deuce: defaultDeuce(), w: '' };
   const sc   = scoreFromLog(log);
-  const serve = (m.live?.serve || 'a');
   const over = m.status === 'done';
   const started = log.w.length > 0;
   const na = teamNames(m.team_a), nb = teamNames(m.team_b);
-  const lbl = pointLabels(sc.a, sc.b, log.deuce, over ? null : serve, shortName(na, 'Team A'), shortName(nb, 'Team B'));
+  const lbl = pointLabels(sc.a, sc.b, log.deuce, shortName(na, 'Team A'), shortName(nb, 'Team B'));
   const where = m.round ? `Round ${m.round} · Court ${m.court}` : formatDate(m.date);
   const canEdit = App.isAdmin;
 
   // Every row above the POINT buttons keeps the same height whatever the match state,
   // so the buttons never move under a thumb mid-match
   const side = (t, name, games, pt) => `
-    <div class="sc-side ${!over && serve === t ? 'serving' : ''}">
-      <div class="sc-serve">${!over && serve === t ? 'Serving' : ''}</div>
+    <div class="sc-side">
       <div class="sc-name">${esc(name)}</div>
       <div class="sc-games">${games}</div>
       <div class="sc-pt">${over ? '' : pt}</div>
@@ -111,18 +109,11 @@ function renderScorer(matchId) {
 
     ${canEdit && !started && !over ? `
       <div class="card sc-setup">
-        <div class="flex-between mb-8">
+        <div class="flex-between">
           <span class="text-sm">Deuce</span>
           <div class="seg">
             <button class="${log.deuce === 'sudden' ? 'active' : ''}" onclick="scorerSetup('deuce','sudden')">Sudden death</button>
             <button class="${log.deuce === 'full' ? 'active' : ''}" onclick="scorerSetup('deuce','full')">Advantage</button>
-          </div>
-        </div>
-        <div class="flex-between">
-          <span class="text-sm">First serve</span>
-          <div class="seg">
-            <button class="${serve === 'a' ? 'active' : ''}" onclick="scorerSetup('serve','a')">${esc(shortName(na, 'Team A'))}</button>
-            <button class="${serve === 'b' ? 'active' : ''}" onclick="scorerSetup('serve','b')">${esc(shortName(nb, 'Team B'))}</button>
           </div>
         </div>
       </div>` : ''}
@@ -144,12 +135,11 @@ function _scorerMatch() { return App.matches.find(x => x.id === _scorerId); }
 
 function scorerSetup(what, val) {
   const m = _scorerMatch();
-  const log = { deuce: defaultDeuce(), w: '', s: '', ...(m.points || {}) };
-  const live = { serve: 'a', ...(m.live || {}) };
-  if (what === 'deuce') log.deuce = val; else live.serve = val;
-  m.points = log; m.live = live;
+  const log = { deuce: defaultDeuce(), w: '', ...(m.points || {}) };
+  if (what === 'deuce') log.deuce = val;
+  m.points = log;
   renderScorer(m.id);
-  queueSave({ id: m.id, points: log, live });
+  queueSave({ id: m.id, points: log });
 }
 
 function scorerPoint(side) {
@@ -157,20 +147,15 @@ function scorerPoint(side) {
   if (!m || m.status === 'done') return;
   if (navigator.vibrate) navigator.vibrate(15);
 
-  const log = { deuce: defaultDeuce(), w: '', s: '', ...(m.points || {}) };
-  let serve = m.live?.serve || 'a';
-  const before = scoreFromLog(log);
-
+  const log = { deuce: defaultDeuce(), w: '', ...(m.points || {}) };
   log.w += side;
-  log.s += serve.toUpperCase();
   const sc = scoreFromLog(log);
-  if (sc.gA + sc.gB > before.gA + before.gB) serve = serve === 'a' ? 'b' : 'a'; // game over → change server
 
   const over = isMatchOver(sc.gA, sc.gB, matchFormat(m));
   Object.assign(m, {
     points: log, score_a: sc.gA, score_b: sc.gB,
     status: over ? 'done' : 'live',
-    live:   over ? null : { serve }
+    live:   over ? null : {}
   });
   renderScorer(m.id);
   queueSave({ id: m.id, points: log, score_a: sc.gA, score_b: sc.gB, status: m.status, live: m.live });
@@ -181,11 +166,10 @@ function scorerUndo() {
   const m = _scorerMatch();
   if (!m?.points?.w) return;
   const log = { ...m.points };
-  const serve = (log.s.at(-1) || 'A').toLowerCase(); // server of the removed point
   log.w = log.w.slice(0, -1);
-  log.s = log.s.slice(0, -1);
+  if (log.s) log.s = log.s.slice(0, -1); // older logs also stored the server
   const sc = scoreFromLog(log);
-  Object.assign(m, { points: log, score_a: sc.gA, score_b: sc.gB, status: 'live', live: { serve } });
+  Object.assign(m, { points: log, score_a: sc.gA, score_b: sc.gB, status: 'live', live: {} });
   renderScorer(m.id);
   queueSave({ id: m.id, points: log, score_a: sc.gA, score_b: sc.gB, status: 'live', live: m.live });
 }
@@ -285,15 +269,14 @@ function liveCardHtml(m) {
   const log = m.points?.w != null ? m.points : { deuce: defaultDeuce(), w: '' };
   const sc  = scoreFromLog(log);
   const na = teamNames(m.team_a), nb = teamNames(m.team_b);
-  const lbl = pointLabels(sc.a, sc.b, log.deuce, m.live?.serve, shortName(na, 'Team A'), shortName(nb, 'Team B'));
-  const srv = m.live?.serve;
+  const lbl = pointLabels(sc.a, sc.b, log.deuce, shortName(na, 'Team A'), shortName(nb, 'Team B'));
   return `
     <a class="card live-card" href="#/e/${App.slug}/score/${m.id}">
       <div class="flex-between mb-8">
         <span class="live-dot">● LIVE${m.court ? ` · Court ${m.court}` : ''}</span>
         <span class="text-sm text-muted">${esc(lbl.status)}</span>
       </div>
-      <div class="lc-row"><span class="lc-name">${esc(na)}${srv === 'a' ? ' <span class="serve-dot" title="Serving" aria-label="serving"></span>' : ''}</span><span class="lc-g">${sc.gA}</span><span class="lc-p">${lbl.a}</span></div>
-      <div class="lc-row"><span class="lc-name">${esc(nb)}${srv === 'b' ? ' <span class="serve-dot" title="Serving" aria-label="serving"></span>' : ''}</span><span class="lc-g">${sc.gB}</span><span class="lc-p">${lbl.b}</span></div>
+      <div class="lc-row"><span class="lc-name">${esc(na)}</span><span class="lc-g">${sc.gA}</span><span class="lc-p">${lbl.a}</span></div>
+      <div class="lc-row"><span class="lc-name">${esc(nb)}</span><span class="lc-g">${sc.gB}</span><span class="lc-p">${lbl.b}</span></div>
     </a>`;
 }
