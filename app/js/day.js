@@ -85,7 +85,7 @@ function roundDoneHtml(last) {
       </div>`).join('')}
     ${App.isAdmin
       ? `<button class="btn btn-green mt-12" onclick="dayAddRounds(1)">Start round ${last + 1}</button>
-         <a class="btn btn-outline mt-8" href="#/e/${App.slug}/share">Done for today: make the Instagram story</a>`
+         <a class="btn btn-outline mt-8" href="#/e/${App.slug}/share">End Session</a>`
       : `<p class="text-sm text-muted mt-12">Waiting for the organizer to start the next round.</p>
          <a class="btn btn-outline mt-8" href="#/e/${App.slug}/share">See the Instagram story</a>`}
   </div>`;
