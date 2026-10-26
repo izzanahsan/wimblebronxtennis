@@ -2,8 +2,9 @@
 // A live-scored match stores its points as { deuce, w, s }:
 //   deuce — 'sudden' | 'full'
 //   w     — point winners, one char per point ('A' / 'B')
-//   s     — serving team for each point ('A' / 'B')
-// Everything below is derived by replaying that log.
+//   s     — serving team for each point ('A' / 'B'), used only by the live scorer
+// Stats below use only who won each point: serve-based numbers would rest
+// on the first-serve setting being right, so they're left out.
 
 // Who wins the game at this point count? null = game still going
 function gameWinner(a, b, rule) {
@@ -48,14 +49,12 @@ function replayMatch(rec) {
   let a = 0, b = 0, gA = 0, gB = 0, g = null;
 
   for (let i = 0; i < rec.w.length; i++) {
-    const w = rec.w[i], srv = rec.s[i] || 'A', rcv = srv === 'A' ? 'B' : 'A';
-    if (!g) g = { server: srv, winner: null, deuce: false };
-
-    const isBP = isGamePointFor(rcv, a, b, rule);
+    const w = rec.w[i];
+    if (!g) g = { winner: null, deuce: false };
     if (a >= 3 && b >= 3) g.deuce = true;
 
     if (w === 'A') a++; else b++;
-    points.push({ w, srv, isBP });
+    points.push({ w });
 
     const gw = gameWinner(a, b, rule);
     if (gw) {
@@ -73,11 +72,7 @@ function replayMatch(rec) {
 
 function emptyPointStats() {
   return {
-    matches: 0, pts: 0, total: 0,
-    srvPts: 0, srvWon: 0, retPts: 0, retWon: 0,
-    srvGames: 0, holds: 0, retGames: 0, breaks: 0,
-    bpChances: 0, bpWon: 0, bpFaced: 0, bpSaved: 0,
-    deuceGames: 0, deuceWon: 0, streak: 0
+    matches: 0, pts: 0, total: 0, deuceGames: 0, deuceWon: 0, streak: 0
   };
 }
 
@@ -90,19 +85,9 @@ function teamPointStats(rep, side) {
   rep.points.forEach(p => {
     const won = p.w === side;
     if (won) { s.pts++; run++; s.streak = Math.max(s.streak, run); } else run = 0;
-
-    if (p.srv === side) {
-      s.srvPts++; if (won) s.srvWon++;
-      if (p.isBP) { s.bpFaced++; if (won) s.bpSaved++; }
-    } else {
-      s.retPts++; if (won) s.retWon++;
-      if (p.isBP) { s.bpChances++; if (won) s.bpWon++; }
-    }
   });
 
   rep.games.filter(g => g.winner).forEach(g => {
-    if (g.server === side) { s.srvGames++; if (g.winner === side) s.holds++; }
-    else                   { s.retGames++; if (g.winner === side) s.breaks++; }
     if (g.deuce) { s.deuceGames++; if (g.winner === side) s.deuceWon++; }
   });
 
@@ -192,13 +177,11 @@ function openMatchStats(id) {
   const A = teamPointStats(rep, 'A'), B = teamPointStats(rep, 'B');
   const na = teamNames(m.team_a), nb = teamNames(m.team_b);
 
-  const games = rep.games.filter(g => g.winner).map((g, i) => {
-    const brk = g.winner !== g.server;
-    return `<div class="game-chip ${g.winner === 'A' ? 'gc-a' : 'gc-b'}" title="Game ${i + 1}">
+  const games = rep.games.filter(g => g.winner).map((g, i) => `
+    <div class="game-chip ${g.winner === 'A' ? 'gc-a' : 'gc-b'}" title="Game ${i + 1}">
       <div class="gc-score">${g.score[0]}-${g.score[1]}</div>
-      <div class="gc-tags">${g.server === 'A' ? '◀' : '▶'}${brk ? ' BRK' : ''}${g.deuce ? ' D' : ''}</div>
-    </div>`;
-  }).join('');
+      <div class="gc-tags">${g.deuce ? 'D' : '&nbsp;'}</div>
+    </div>`).join('');
 
   const html = `
     <div class="ms-head">
@@ -214,17 +197,11 @@ function openMatchStats(id) {
     ${momentumSvg(rep)}
     <div class="mo-legend"><span class="mo-key-a">▲ ${esc(shortName(na, 'Team A'))} ahead</span><span class="mo-key-b">▼ ${esc(shortName(nb, 'Team B'))} ahead</span></div>
 
-    <div class="ms-section">Games <span class="text-muted" style="font-size:10px">◀▶ = server · BRK = break · D = went to deuce</span></div>
+    <div class="ms-section">Games <span class="text-muted" style="font-size:12px">D = went to deuce</span></div>
     <div class="game-strip">${games}</div>
 
     <div class="ms-section">Stats</div>
     ${compareRow('Points won',        A.pts,  B.pts,  A.pts,  B.pts)}
-    ${compareRow('Serve points won',  pct(A.srvWon, A.srvPts), pct(B.srvWon, B.srvPts), A.srvWon / (A.srvPts || 1), B.srvWon / (B.srvPts || 1))}
-    ${compareRow('Return points won', pct(A.retWon, A.retPts), pct(B.retWon, B.retPts), A.retWon / (A.retPts || 1), B.retWon / (B.retPts || 1))}
-    ${compareRow('Service holds',     frac(A.holds, A.srvGames), frac(B.holds, B.srvGames), A.holds, B.holds)}
-    ${compareRow('Breaks',            A.breaks, B.breaks, A.breaks, B.breaks)}
-    ${compareRow('Break points won',  frac(A.bpWon, A.bpChances), frac(B.bpWon, B.bpChances), A.bpWon, B.bpWon)}
-    ${compareRow('Break points saved', frac(A.bpSaved, A.bpFaced), frac(B.bpSaved, B.bpFaced), A.bpSaved, B.bpSaved)}
     ${compareRow('Deuce games won',   A.deuceWon, B.deuceWon, A.deuceWon, B.deuceWon)}
     ${compareRow('Longest point run', A.streak, B.streak, A.streak, B.streak)}
   `;
@@ -244,17 +221,11 @@ function openPlayerStats(pid, matches, record, scopeLabel) {
   const pointSection = s.matches
     ? `<div class="ps-grid">
         ${stat('Points won',      pct(s.pts, s.total),       `${s.pts}/${s.total}`)}
-        ${stat('Serve pts won',   pct(s.srvWon, s.srvPts))}
-        ${stat('Return pts won',  pct(s.retWon, s.retPts))}
-        ${stat('Hold %',          pct(s.holds, s.srvGames),  frac(s.holds, s.srvGames))}
-        ${stat('Break %',         pct(s.breaks, s.retGames), frac(s.breaks, s.retGames))}
-        ${stat('BP converted',    pct(s.bpWon, s.bpChances), frac(s.bpWon, s.bpChances))}
-        ${stat('BP saved',        pct(s.bpSaved, s.bpFaced), frac(s.bpSaved, s.bpFaced))}
         ${stat('Deuce games won', pct(s.deuceWon, s.deuceGames), frac(s.deuceWon, s.deuceGames))}
         ${stat('Best point run',  s.streak)}
       </div>
       <p class="text-sm text-muted mt-8">From ${s.matches} live-scored match${s.matches === 1 ? '' : 'es'}. Doubles stats count for both partners.</p>`
-    : `<div class="empty" style="padding:12px 0">No live-scored matches yet.<br>Score a match with <strong>Live</strong> to unlock serve, break and deuce stats.</div>`;
+    : `<div class="empty" style="padding:12px 0">No live-scored matches yet.<br>Score a match point by point to see points won, deuce games and point runs.</div>`;
 
   openSheet(`
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
