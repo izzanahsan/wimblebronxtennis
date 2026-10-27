@@ -103,7 +103,7 @@ function addPointStats(into, s) {
 function playerPointStats(pid, matches) {
   const agg = emptyPointStats();
   matches.forEach(m => {
-    if (!m.points?.w) return;
+    if (!hasStats(m)) return;
     const side = m.team_a.includes(pid) ? 'A' : m.team_b.includes(pid) ? 'B' : null;
     if (side) addPointStats(agg, teamPointStats(replayMatch(m.points), side));
   });

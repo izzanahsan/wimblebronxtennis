@@ -208,7 +208,7 @@ function renderLeagueHistory() {
           <div class="mr-score"><span class="${aWin ? 'score-win' : ''}">${m.score_a}</span><span class="text-muted">–</span><span class="${!aWin ? 'score-win' : ''}">${m.score_b}</span></div>
           <div class="mr-team mr-right ${!aWin ? 'win' : ''}">${esc(teamNames(m.team_b))}</div>
           <div class="mr-actions">
-            ${m.points?.w ? `<button class="btn-mini btn-mini-icon" onclick="openMatchStats(${m.id})" aria-label="Match stats">${ICONS.stats(16)}</button>` : ''}
+            ${hasStats(m) ? `<button class="btn-mini btn-mini-icon" onclick="openMatchStats(${m.id})" aria-label="Match stats">${ICONS.stats(16)}</button>` : ''}
             ${App.isAdmin ? `<button class="btn-mini btn-mini-icon" onclick="leagueDeleteMatch(${m.id})" aria-label="Delete match">${ICONS.trash(16)}</button>` : ''}
           </div>
         </div>`;

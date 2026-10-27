@@ -25,6 +25,13 @@ assert.equal(pointLabels(1, 1, 'full', 'Ana', 'Ben').status, '');
 assert.deepEqual({ ...scoreFromLog({ w: 'AAAA' + 'BB', deuce: 'full' }) }, { gA: 1, gB: 0, a: 0, b: 2 });
 assert.deepEqual({ ...scoreFromLog({ w: 'AAABBBA' + 'B' + 'AA', deuce: 'full' }) }, { gA: 1, gB: 0, a: 0, b: 0 });
 
+// Games fixed by hand add on top of the log and turn stats off
+const { hasStats } = ctx;
+assert.deepEqual({ ...scoreFromLog({ w: 'AAAA' + 'B', deuce: 'full', adj: [1, 2] }) }, { gA: 2, gB: 2, a: 0, b: 1 });
+assert.equal(hasStats({ points: { w: 'AB' } }), true);
+assert.equal(hasStats({ points: { w: 'AB', adj: [0, 1] } }), false);
+assert.equal(hasStats({ points: null }), false);
+
 // Ties share a rank
 const byPts = (a, b) => a === b;
 assert.deepEqual([...tiedRanks([9, 7, 5], byPts)], [1, 2, 3]);

@@ -124,9 +124,9 @@ function matchRowHtml(m, isCurrent) {
     </div>`;
   } else if (live) {
     action = `<div class="mr-actions"><a class="btn-mini btn-mini-live" href="#/e/${App.slug}/score/${m.id}"><span class="live-dot-sm" aria-hidden="true"></span>Watch live</a></div>`;
-  } else if (done && (m.points?.w || App.isAdmin)) {
+  } else if (done && (hasStats(m) || App.isAdmin)) {
     action = `<div class="mr-actions">
-      ${m.points?.w ? `<button class="btn-mini" onclick="openMatchStats(${m.id})">${ICONS.stats(16)}Stats</button>` : ''}
+      ${hasStats(m) ? `<button class="btn-mini" onclick="openMatchStats(${m.id})">${ICONS.stats(16)}Stats</button>` : ''}
       ${App.isAdmin ? `<button class="btn-mini" onclick="openQuickScore(${m.id})">Edit</button>` : ''}
     </div>`;
   }

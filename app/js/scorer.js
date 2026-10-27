@@ -13,8 +13,13 @@ function scoreFromLog(log) {
     const gw = gameWinner(a, b, log.deuce);
     if (gw) { if (gw === 'A') gA++; else gB++; a = 0; b = 0; }
   }
+  // Games fixed by hand (points were missed): added on top of the log
+  if (log.adj) { gA += log.adj[0]; gB += log.adj[1]; }
   return { gA, gB, a, b };
 }
+
+// Point stats only make sense when every game was scored point by point
+function hasStats(m) { return !!m.points?.w && !m.points.adj; }
 
 // ── SAVE QUEUE ───────────────────────────────────────────────
 // Points are sent in order and each save carries the full match state.
@@ -73,6 +78,10 @@ function renderScorer(matchId) {
     <div class="sc-side">
       <div class="sc-name">${esc(name)}</div>
       <div class="sc-games">${games}</div>
+      ${canEdit && !over ? `<div class="sc-adj">
+        <button onclick="scorerAdjust('${t}',-1)" aria-label="One game less for ${esc(name)}" ${games > 0 ? '' : 'disabled'}>−</button>
+        <button onclick="scorerAdjust('${t}',1)" aria-label="One game more for ${esc(name)}">+</button>
+      </div>` : ''}
       <div class="sc-pt">${over ? '' : pt}</div>
     </div>`;
 
@@ -118,9 +127,11 @@ function renderScorer(matchId) {
         </div>
       </div>` : ''}
 
-    ${started ? `
+    ${log.adj && !over ? `<p class="text-sm text-muted mt-8" style="text-align:center">Games fixed by hand, so match stats are off.</p>` : ''}
+
+    ${started || log.adj ? `
       <div class="sc-extra">
-        <button class="btn btn-outline" onclick="openMatchStats(${m.id})">Match stats</button>
+        ${hasStats(m) ? `<button class="btn btn-outline" onclick="openMatchStats(${m.id})">Match stats</button>` : ''}
         ${canEdit && !over ? `<button class="btn btn-outline btn-quiet-danger" onclick="scorerFinishNow()">End match now</button>` : ''}
       </div>` : ''}
   `;
@@ -150,8 +161,35 @@ function scorerPoint(side) {
   // s stays '' : phones still on the old app read it, and crash without it
   const log = { deuce: defaultDeuce(), w: '', s: '', ...(m.points || {}) };
   log.w += side;
-  const sc = scoreFromLog(log);
+  _scorerApply(m, log);
+}
 
+// Fix the games by hand when points were missed. Turns off stats for this match.
+async function scorerAdjust(side, d) {
+  let m = _scorerMatch();
+  if (!m || m.status === 'done') return;
+  if (!m.points?.adj) {
+    const ok = await confirmSheet({
+      title: 'Fix the games by hand?',
+      body: 'Use this when points were missed. Match stats will be turned off for this match. You can keep scoring point by point after.',
+      action: 'Fix games'
+    });
+    m = _scorerMatch();  // a realtime refresh may have replaced it meanwhile
+    if (!ok || !m || m.status === 'done') { if (m) renderScorer(m.id); return; }
+  }
+  const log = { deuce: defaultDeuce(), w: '', s: '', ...(m.points || {}) };
+  const adj = [...(log.adj || [0, 0])];
+  const i = side === 'a' ? 0 : 1;
+  const sc = scoreFromLog(log);
+  if ((i ? sc.gB : sc.gA) + d < 0) return;
+  adj[i] += d;
+  log.adj = adj;
+  _scorerApply(m, log);
+}
+
+// Save a new point log: recompute games, finish the match if it's won
+function _scorerApply(m, log) {
+  const sc = scoreFromLog(log);
   const over = isMatchOver(sc.gA, sc.gB, matchFormat(m));
   Object.assign(m, {
     points: log, score_a: sc.gA, score_b: sc.gB,
