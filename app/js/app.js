@@ -20,12 +20,8 @@ async function route() {
 
   if (parts[0] === 'e' && parts[1]) {
     const slug = parts[1];
-    if (key) {
-      // Organizer link: remember the key, then drop it from the address bar
-      if (await apiCheckKey(slug, key)) { Keys.set(slug, key); toast('You are an organizer of this event'); }
-      else toast('That organizer link is not valid. You can still view the event.', 4000);
-      history.replaceState(null, '', `#/${parts.join('/')}`);
-    }
+    // Old organizer links still work: drop the key from the address bar
+    if (key) history.replaceState(null, '', `#/${parts.join('/')}`);
     if (App.slug !== slug) {
       setHeader(null);
       document.getElementById('view').innerHTML = '<div class="loading-inline"><div class="loading-spinner"></div></div>';
@@ -53,7 +49,7 @@ async function route() {
 function rerender() {
   const { parts } = _route;
   if (!App.event || parts[0] !== 'e') return;
-  App.isAdmin = !!Keys.get(App.slug);
+  App.isAdmin = true;
 
   if (parts[2] === 'score') {
     setHeader(App.event, null);
@@ -82,7 +78,6 @@ function setHeader(ev, activeTab) {
         <div class="ev-sub">
           ${ev.kind === 'day' ? 'Americano' : 'League'}
           ${ev.kind === 'league' && season ? ` · <button type="button" class="season-badge" onclick="openSeasonSwitcher()" aria-label="Season: ${esc(season.name)}. Change season">${esc(season.name)} ▾</button>` : ''}
-          ${App.isAdmin ? ' · <span class="org-badge">Organizer</span>' : ''}
         </div>
       </div>
       <button class="icon-btn" onclick="openInvite()" aria-label="Share links">${ICONS.share(18)}</button>
@@ -98,15 +93,9 @@ function openInvite() {
   openSheet(`
     <div class="modal-title">Share</div>
     <div class="link-box">
-      <div class="input-label">Players & spectators (view only)</div>
+      <div class="input-label">Anyone with this link can follow and keep score</div>
       <div class="link-row"><code>${esc(viewLink(s))}</code><button class="btn-mini" onclick="copyText('${viewLink(s)}','View link')">Copy</button></div>
     </div>
-    ${App.isAdmin ? `
-    <div class="link-box">
-      <div class="input-label">Organizer (can enter scores and edit)</div>
-      <div class="link-row"><code>${esc(organizerLink(s))}</code><button class="btn-mini" onclick="copyText('${organizerLink(s)}','Organizer link')">Copy</button></div>
-      <p class="text-sm text-muted mt-8">Send this only to people who should keep score. Save it somewhere safe: it's the only way to edit from another phone.</p>
-    </div>` : ''}
     <div class="text-sm text-muted">Event code: <strong>${esc(s)}</strong></div>
   `);
 }
@@ -146,7 +135,6 @@ function renderHome() {
       <a class="recent-row" href="#/e/${esc(r.slug)}">
         <span class="recent-kind">${r.kind === 'day' ? ICONS.day(18) : ICONS.league(18)}</span>
         <span class="recent-name">${esc(r.name)}</span>
-        ${Keys.get(r.slug) ? '<span class="org-badge">Organizer</span>' : ''}
       </a>`).join('')}` : ''}
 
     <p class="home-foot">Tennis Klab Wimblebronx</p>

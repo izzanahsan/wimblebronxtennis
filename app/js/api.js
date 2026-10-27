@@ -121,7 +121,7 @@ async function loadEvent(slug) {
   App.players = d.players;
   App.seasons = d.seasons;
   App.matches = d.matches;
-  App.isAdmin = !!Keys.get(slug);
+  App.isAdmin = true;  // no organizer key: every phone can score and edit
   if (!App.seasons.find(s => s.id === App.seasonId)) App.seasonId = App.seasons.at(-1)?.id ?? null;
   Recent.add(App.event);
   Names.add(App.players.filter(p => p.active).map(p => p.name));
